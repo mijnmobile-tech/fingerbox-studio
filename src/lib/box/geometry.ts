@@ -28,6 +28,7 @@ function edgeProfile(
   mode: EdgeMode,
   kerf: number,
   startExtended: boolean,
+  style: FingerStyle,
 ): Point[] {
   if (mode === "flat" || length <= 0) {
     return [
@@ -43,6 +44,10 @@ function edgeProfile(
 
   const isExtended = (i: number) => (i % 2 === 0) === startExtended;
 
+  // shaping deltas for non-box profiles
+  const dove = Math.min(fw * 0.22, Math.abs(depth) * 0.7);
+  const cham = Math.min(fw * 0.2, Math.abs(depth) * 0.7);
+
   const pts: Point[] = [];
   pts.push({ x: 0, y: isExtended(0) ? depth : 0 });
 
@@ -52,8 +57,29 @@ function edgeProfile(
     const curExt = isExtended(i);
     const shift = (prevExt ? grow : -grow) * k;
     const xb = clamp(x + shift, 0, length);
-    pts.push({ x: xb, y: prevExt ? depth : 0 });
-    pts.push({ x: xb, y: curExt ? depth : 0 });
+
+    if (style === "dovetail") {
+      // tabs flare wider toward their tip (depth level)
+      if (prevExt) {
+        pts.push({ x: clamp(xb + dove, 0, length), y: depth });
+        pts.push({ x: xb, y: 0 });
+      } else {
+        pts.push({ x: xb, y: 0 });
+        pts.push({ x: clamp(xb - dove, 0, length), y: depth });
+      }
+    } else if (style === "chamfer") {
+      // tabs narrow toward their tip (45° chamfered corners)
+      if (prevExt) {
+        pts.push({ x: clamp(xb - cham, 0, length), y: depth });
+        pts.push({ x: xb, y: 0 });
+      } else {
+        pts.push({ x: xb, y: 0 });
+        pts.push({ x: clamp(xb + cham, 0, length), y: depth });
+      }
+    } else {
+      pts.push({ x: xb, y: prevExt ? depth : 0 });
+      pts.push({ x: xb, y: curExt ? depth : 0 });
+    }
   }
   pts.push({ x: length, y: isExtended(n - 1) ? depth : 0 });
   return pts;
