@@ -2,6 +2,7 @@ import type {
   BoxConfig,
   BuiltBox,
   EdgeMode,
+  FingerStyle,
   Panel,
   PanelEdges,
   Point,
