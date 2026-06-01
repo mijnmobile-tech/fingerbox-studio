@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Download, Zap, Box as BoxIcon } from "lucide-react";
 import { buildBox } from "@/lib/box/geometry";
 import { buildSvg, downloadSvg } from "@/lib/box/svg";
@@ -51,8 +52,17 @@ function App() {
   const dim = (v: number) => `${num(v, units)} ${u}`;
 
   const handleDownload = () => {
-    const svg = buildSvg(box, { labels: true });
-    downloadSvg(svg, `box-studio-${box.exterior.length}x${box.exterior.depth}.svg`);
+    try {
+      const svg = buildSvg(box, { labels: true });
+      const filename = `box-studio-${box.exterior.length}x${box.exterior.depth}.svg`;
+      downloadSvg(svg, filename);
+      toast.success("SVG exported", {
+        description: `${box.panels.length} panels · ${filename}`,
+      });
+    } catch (err) {
+      console.error("SVG export failed", err);
+      toast.error("Could not export SVG. Please try again.");
+    }
   };
 
   return (
@@ -204,7 +214,7 @@ function App() {
             </Section>
           </div>
 
-          <div className="border-t border-border p-4">
+          <div className="space-y-3 border-t border-border p-4">
             <button
               onClick={handleDownload}
               className="flex w-full items-center justify-center gap-2 rounded-sm bg-success px-4 py-3 label-caps font-bold text-success-foreground transition-opacity hover:opacity-90"
@@ -212,6 +222,9 @@ function App() {
               <Download className="h-4 w-4" />
               Download SVG (laser cut)
             </button>
+            <p className="text-center text-[0.7rem] text-muted-foreground">
+              Created by Patrick Visser
+            </p>
           </div>
         </aside>
 
