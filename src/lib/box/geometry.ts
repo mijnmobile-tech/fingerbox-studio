@@ -2,6 +2,7 @@ import type {
   BoxConfig,
   BuiltBox,
   EdgeMode,
+  FingerStyle,
   Panel,
   PanelEdges,
   Point,
@@ -27,6 +28,7 @@ function edgeProfile(
   mode: EdgeMode,
   kerf: number,
   startExtended: boolean,
+  style: FingerStyle,
 ): Point[] {
   if (mode === "flat" || length <= 0) {
     return [
@@ -42,6 +44,10 @@ function edgeProfile(
 
   const isExtended = (i: number) => (i % 2 === 0) === startExtended;
 
+  // shaping deltas for non-box profiles
+  const dove = Math.min(fw * 0.22, Math.abs(depth) * 0.7);
+  const cham = Math.min(fw * 0.2, Math.abs(depth) * 0.7);
+
   const pts: Point[] = [];
   pts.push({ x: 0, y: isExtended(0) ? depth : 0 });
 
@@ -51,8 +57,29 @@ function edgeProfile(
     const curExt = isExtended(i);
     const shift = (prevExt ? grow : -grow) * k;
     const xb = clamp(x + shift, 0, length);
-    pts.push({ x: xb, y: prevExt ? depth : 0 });
-    pts.push({ x: xb, y: curExt ? depth : 0 });
+
+    if (style === "dovetail") {
+      // tabs flare wider toward their tip (depth level)
+      if (prevExt) {
+        pts.push({ x: clamp(xb + dove, 0, length), y: depth });
+        pts.push({ x: xb, y: 0 });
+      } else {
+        pts.push({ x: xb, y: 0 });
+        pts.push({ x: clamp(xb - dove, 0, length), y: depth });
+      }
+    } else if (style === "chamfer") {
+      // tabs narrow toward their tip (45° chamfered corners)
+      if (prevExt) {
+        pts.push({ x: clamp(xb - cham, 0, length), y: depth });
+        pts.push({ x: xb, y: 0 });
+      } else {
+        pts.push({ x: xb, y: 0 });
+        pts.push({ x: clamp(xb + cham, 0, length), y: depth });
+      }
+    } else {
+      pts.push({ x: xb, y: prevExt ? depth : 0 });
+      pts.push({ x: xb, y: curExt ? depth : 0 });
+    }
   }
   pts.push({ x: length, y: isExtended(n - 1) ? depth : 0 });
   return pts;
@@ -69,6 +96,7 @@ interface RectPanelOpts {
   thickness: number;
   kerf: number;
   edges: PanelEdges;
+  style: FingerStyle;
   /** Per-edge starting finger parity (for alternate corners). */
   start?: Partial<Record<keyof PanelEdges, boolean>>;
 }
@@ -79,28 +107,28 @@ interface RectPanelOpts {
  * Traversed counter-clockwise.
  */
 function rectPanel(opts: RectPanelOpts): Point[] {
-  const { width: w, height: h, tooth, thickness: t, kerf, edges } = opts;
+  const { width: w, height: h, tooth, thickness: t, kerf, edges, style } = opts;
   const s = opts.start ?? {};
   const out: Point[] = [];
 
   // bottom edge: along +x at y=0, outward = -y
-  const bottom = edgeProfile(w, tooth, t, edges.bottom, kerf, s.bottom ?? true);
+  const bottom = edgeProfile(w, tooth, t, edges.bottom, kerf, s.bottom ?? true, style);
   for (const p of bottom) out.push({ x: p.x, y: -p.y });
 
   // right edge: along +y at x=w, outward = +x
-  const right = edgeProfile(h, tooth, t, edges.right, kerf, s.right ?? true);
+  const right = edgeProfile(h, tooth, t, edges.right, kerf, s.right ?? true, style);
   for (let i = 1; i < right.length; i++) {
     out.push({ x: w + right[i].y, y: right[i].x });
   }
 
   // top edge: along -x at y=h, outward = +y
-  const top = edgeProfile(w, tooth, t, edges.top, kerf, s.top ?? true);
+  const top = edgeProfile(w, tooth, t, edges.top, kerf, s.top ?? true, style);
   for (let i = 1; i < top.length; i++) {
     out.push({ x: w - top[i].x, y: h + top[i].y });
   }
 
   // left edge: along -y at x=0, outward = -x
-  const left = edgeProfile(h, tooth, t, edges.left, kerf, s.left ?? true);
+  const left = edgeProfile(h, tooth, t, edges.left, kerf, s.left ?? true, style);
   for (let i = 1; i < left.length - 1; i++) {
     out.push({ x: -left[i].y, y: h - left[i].x });
   }
@@ -186,6 +214,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       thickness: t,
       kerf: cfg.kerf,
       edges: fbEdges,
+      style: cfg.fingerStyle,
     });
     const nz = normalize(raw);
     panels.push({
@@ -220,6 +249,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       thickness: t,
       kerf: cfg.kerf,
       edges: lrEdges,
+      style: cfg.fingerStyle,
       start: lrStart,
     });
     const nz = normalize(raw);
@@ -252,6 +282,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       thickness: t,
       kerf: cfg.kerf,
       edges: plateEdges,
+      style: cfg.fingerStyle,
     });
     // divider slots in the plate
     const holes: Point[][] = [];
@@ -364,6 +395,7 @@ function makeDivider(
     thickness: t,
     kerf: cfg.kerf,
     edges,
+    style: cfg.fingerStyle,
   });
   const b = bounds(raw);
   const holes: Point[][] = [];

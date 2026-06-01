@@ -43,6 +43,7 @@ function App() {
   const [cfg, setCfg] = useState<BoxConfig>(defaultConfig);
   const [units, setUnits] = useState<Units>("mm");
   const [view, setView] = useState<ViewPreset>("perspective");
+  const [exploded, setExploded] = useState(0);
 
   const box = useMemo(() => buildBox(cfg), [cfg]);
   const set = <K extends keyof BoxConfig>(k: K, v: BoxConfig[K]) =>
@@ -181,6 +182,20 @@ function App() {
                   onChange={(v) => set("joint", v as BoxConfig["joint"])}
                 />
               </div>
+              {cfg.joint === "finger" && (
+                <div className="space-y-1.5">
+                  <FieldLabel>Finger joint type</FieldLabel>
+                  <SegmentedControl
+                    options={[
+                      { value: "box", label: "Box" },
+                      { value: "dovetail", label: "Dovetail" },
+                      { value: "chamfer", label: "Chamfer" },
+                    ]}
+                    value={cfg.fingerStyle}
+                    onChange={(v) => set("fingerStyle", v as BoxConfig["fingerStyle"])}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <FieldLabel value={`${cfg.tooth.toFixed(1)} mm`}>Tooth size</FieldLabel>
                 <Slider value={cfg.tooth} onChange={(v) => set("tooth", v)} min={4} max={40} step={0.5} />
@@ -211,6 +226,25 @@ function App() {
                 value={view}
                 onChange={(v) => setView(v as ViewPreset)}
               />
+              <Toggle
+                label="Exploded view"
+                checked={exploded > 0}
+                onChange={(on) => setExploded(on ? 0.5 : 0)}
+              />
+              {exploded > 0 && (
+                <div className="space-y-1.5">
+                  <FieldLabel value={`${Math.round(exploded * 100)}%`}>
+                    Explode amount
+                  </FieldLabel>
+                  <Slider
+                    value={exploded}
+                    onChange={setExploded}
+                    min={0.05}
+                    max={1}
+                    step={0.05}
+                  />
+                </div>
+              )}
             </Section>
           </div>
 
@@ -230,7 +264,7 @@ function App() {
 
         {/* Canvas */}
         <main className="relative min-w-0 flex-1">
-          <Viewer3D box={box} view={view} />
+          <Viewer3D box={box} view={view} exploded={exploded} />
 
           <div className="pointer-events-none absolute left-6 top-6 rounded-sm border border-border bg-panel/85 px-4 py-3 backdrop-blur-sm">
             <p className="label-caps text-muted-foreground">Interior volume</p>
