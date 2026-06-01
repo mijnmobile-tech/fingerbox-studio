@@ -214,6 +214,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       thickness: t,
       kerf: cfg.kerf,
       edges: fbEdges,
+      style: cfg.fingerStyle,
     });
     const nz = normalize(raw);
     panels.push({
@@ -248,6 +249,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       thickness: t,
       kerf: cfg.kerf,
       edges: lrEdges,
+      style: cfg.fingerStyle,
       start: lrStart,
     });
     const nz = normalize(raw);
@@ -280,6 +282,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       thickness: t,
       kerf: cfg.kerf,
       edges: plateEdges,
+      style: cfg.fingerStyle,
     });
     // divider slots in the plate
     const holes: Point[][] = [];
@@ -392,6 +395,7 @@ function makeDivider(
     thickness: t,
     kerf: cfg.kerf,
     edges,
+    style: cfg.fingerStyle,
   });
   const b = bounds(raw);
   const holes: Point[][] = [];
