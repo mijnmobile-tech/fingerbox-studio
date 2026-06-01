@@ -43,6 +43,7 @@ function App() {
   const [cfg, setCfg] = useState<BoxConfig>(defaultConfig);
   const [units, setUnits] = useState<Units>("mm");
   const [view, setView] = useState<ViewPreset>("perspective");
+  const [exploded, setExploded] = useState(0);
 
   const box = useMemo(() => buildBox(cfg), [cfg]);
   const set = <K extends keyof BoxConfig>(k: K, v: BoxConfig[K]) =>
