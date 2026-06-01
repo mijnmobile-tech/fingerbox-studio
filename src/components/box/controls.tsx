@@ -113,17 +113,24 @@ export function Toggle({
   label: string;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <label className="flex cursor-pointer items-center justify-between">
       <span className="text-sm text-foreground">{label}</span>
       <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-5 w-9 rounded-full transition-colors ${checked ? "bg-success" : "bg-border"}`}
+        className={`relative h-5 w-9 shrink-0 rounded-full border transition-colors ${
+          checked ? "border-success bg-success" : "border-border bg-muted"
+        }`}
       >
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-background shadow-sm transition-transform ${checked ? "translate-x-4" : "translate-x-0.5"}`}
+          className={`absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full bg-white shadow transition-all ${
+            checked ? "left-[18px]" : "left-[3px]"
+          }`}
         />
       </button>
-    </div>
+    </label>
   );
 }
 
