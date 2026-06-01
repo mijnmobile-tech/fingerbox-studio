@@ -52,8 +52,17 @@ function App() {
   const dim = (v: number) => `${num(v, units)} ${u}`;
 
   const handleDownload = () => {
-    const svg = buildSvg(box, { labels: true });
-    downloadSvg(svg, `box-studio-${box.exterior.length}x${box.exterior.depth}.svg`);
+    try {
+      const svg = buildSvg(box, { labels: true });
+      const filename = `box-studio-${box.exterior.length}x${box.exterior.depth}.svg`;
+      downloadSvg(svg, filename);
+      toast.success("SVG exported", {
+        description: `${box.panels.length} panels · ${filename}`,
+      });
+    } catch (err) {
+      console.error("SVG export failed", err);
+      toast.error("Could not export SVG. Please try again.");
+    }
   };
 
   return (
