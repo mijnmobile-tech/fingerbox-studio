@@ -1,15 +1,54 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import type { BuiltBox } from "@/lib/box/types";
+import type { BuiltBox, Panel } from "@/lib/box/types";
 
 export type ViewPreset = "perspective" | "front" | "top" | "side";
 
 interface Props {
   box: BuiltBox;
   view: ViewPreset;
+  /** 0 = assembled, 1 = fully exploded */
+  exploded?: number;
 }
 
-export function Viewer3D({ box, view }: Props) {
+/** Map model space (Z up) -> three space (Y up): (x,y,z) -> (x, z, -y). */
+function toThree(x: number, y: number, z: number) {
+  return new THREE.Vector3(x, z, -y);
+}
+
+/** Index of the thinnest dimension = panel thickness axis. */
+function thicknessAxis(size: [number, number, number]) {
+  let idx = 0;
+  for (let i = 1; i < 3; i++) if (size[i] < size[idx]) idx = i;
+  return idx;
+}
+
+/** Build an extruded mesh geometry from a panel's outline + holes. */
+function panelGeometry(panel: Panel, t: number) {
+  const shape = new THREE.Shape();
+  panel.outline.forEach((p, i) => {
+    if (i === 0) shape.moveTo(p.x, p.y);
+    else shape.lineTo(p.x, p.y);
+  });
+  shape.closePath();
+  for (const hole of panel.holes) {
+    const path = new THREE.Path();
+    hole.forEach((p, i) => {
+      if (i === 0) path.moveTo(p.x, p.y);
+      else path.lineTo(p.x, p.y);
+    });
+    path.closePath();
+    shape.holes.push(path);
+  }
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: t,
+    bevelEnabled: false,
+  });
+  geo.center();
+  return geo;
+}
+
+export function Viewer3D({ box, view, exploded = 0 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -145,7 +184,7 @@ export function Viewer3D({ box, view }: Props) {
     };
   }, []);
 
-  // rebuild geometry when box changes
+  // rebuild geometry when box or explode changes
   useEffect(() => {
     const st = stateRef.current;
     if (!st) return;
@@ -159,36 +198,69 @@ export function Viewer3D({ box, view }: Props) {
       color: 0xd9b483,
       roughness: 0.72,
       metalness: 0.02,
+      side: THREE.DoubleSide,
     });
     const dividerMat = new THREE.MeshStandardMaterial({
       color: 0xc99f6a,
       roughness: 0.75,
       metalness: 0.02,
+      side: THREE.DoubleSide,
     });
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x8a5a36 });
 
-    for (const p of box.panels) {
-      const [sx, sy, sz] = p.placement.size;
-      const geo = new THREE.BoxGeometry(Math.max(sx, 0.4), Math.max(sy, 0.4), Math.max(sz, 0.4));
+    const maxDim = Math.max(
+      box.exterior.length,
+      box.exterior.height,
+      box.exterior.depth,
+    );
+    const explodeAmt = exploded * maxDim * 0.55;
+
+    box.panels.forEach((p, i) => {
+      const t = Math.min(...p.placement.size);
+      const geo = panelGeometry(p, t);
+
+      // local axes (outline-x, outline-y, thickness) in model space
+      const ti = thicknessAxis(p.placement.size);
+      let uxm: THREE.Vector3, uym: THREE.Vector3, uzm: THREE.Vector3;
+      if (ti === 1) {
+        // thickness along Y (front/back, Y-divider) — plane XZ
+        uxm = toThree(1, 0, 0);
+        uym = toThree(0, 0, 1);
+        uzm = toThree(0, 1, 0);
+      } else if (ti === 0) {
+        // thickness along X (left/right, X-divider) — plane YZ
+        uxm = toThree(0, 1, 0);
+        uym = toThree(0, 0, 1);
+        uzm = toThree(1, 0, 0);
+      } else {
+        // thickness along Z (plates) — plane XY
+        uxm = toThree(1, 0, 0);
+        uym = toThree(0, 1, 0);
+        uzm = toThree(0, 0, 1);
+      }
+      const basis = new THREE.Matrix4().makeBasis(uxm, uym, uzm);
+
       const mat = p.id.startsWith("div") ? dividerMat : woodMat;
       const mesh = new THREE.Mesh(geo, mat);
-      // map model (x,y,z) -> three (x, z, -y) so Z is up
-      mesh.position.set(p.placement.pos[0], p.placement.pos[2], -p.placement.pos[1]);
-      mesh.scale.set(1, 1, 1);
-      // swap dims: our size is [x,y,z]; three uses y-up
-      mesh.geometry = new THREE.BoxGeometry(
-        Math.max(sx, 0.4),
-        Math.max(sz, 0.4),
-        Math.max(sy, 0.4),
-      );
+      mesh.setRotationFromMatrix(basis);
+
+      // exploded offset along the thickness axis, away from center
+      const pos: [number, number, number] = [...p.placement.pos];
+      if (explodeAmt > 0) {
+        const sign = Math.sign(pos[ti]) || (i % 2 === 0 ? 1 : -1);
+        pos[ti] += sign * explodeAmt;
+      }
+      mesh.position.copy(toThree(pos[0], pos[1], pos[2]));
       group.add(mesh);
+
       const edges = new THREE.LineSegments(
-        new THREE.EdgesGeometry(mesh.geometry),
+        new THREE.EdgesGeometry(geo, 15),
         edgeMat,
       );
+      edges.setRotationFromMatrix(basis);
       edges.position.copy(mesh.position);
       group.add(edges);
-    }
+    });
 
     // frame the model
     const box3 = new THREE.Box3().setFromObject(group);
@@ -203,7 +275,7 @@ export function Viewer3D({ box, view }: Props) {
       target.z + radius * Math.cos(el) * Math.cos(az),
     );
     camera.lookAt(target);
-  }, [box]);
+  }, [box, exploded]);
 
   // view presets
   useEffect(() => {
