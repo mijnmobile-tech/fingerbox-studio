@@ -11,6 +11,7 @@ export const defaultConfig: BoxConfig = {
   dividersX: true,
   dividersY: true,
   joint: "finger",
+  fingerStyle: "box",
   tooth: 9,
   kerf: 0.1,
   alternateCorners: true,

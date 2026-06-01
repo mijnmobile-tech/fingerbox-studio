@@ -4,6 +4,8 @@ export type MeasureMode = "interior" | "exterior" | "cell";
 
 export type JointType = "finger" | "butt";
 
+export type FingerStyle = "box" | "dovetail" | "chamfer";
+
 export interface BoxConfig {
   /** Measurement reference mode */
   measure: MeasureMode;
@@ -25,6 +27,8 @@ export interface BoxConfig {
   dividersY: boolean;
   /** Joint type */
   joint: JointType;
+  /** Finger joint tooth profile */
+  fingerStyle: FingerStyle;
   /** Finger / tooth size in mm */
   tooth: number;
   /** Kerf / fit tolerance in mm */
