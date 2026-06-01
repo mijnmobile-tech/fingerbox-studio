@@ -96,6 +96,7 @@ interface RectPanelOpts {
   thickness: number;
   kerf: number;
   edges: PanelEdges;
+  style: FingerStyle;
   /** Per-edge starting finger parity (for alternate corners). */
   start?: Partial<Record<keyof PanelEdges, boolean>>;
 }
@@ -106,28 +107,28 @@ interface RectPanelOpts {
  * Traversed counter-clockwise.
  */
 function rectPanel(opts: RectPanelOpts): Point[] {
-  const { width: w, height: h, tooth, thickness: t, kerf, edges } = opts;
+  const { width: w, height: h, tooth, thickness: t, kerf, edges, style } = opts;
   const s = opts.start ?? {};
   const out: Point[] = [];
 
   // bottom edge: along +x at y=0, outward = -y
-  const bottom = edgeProfile(w, tooth, t, edges.bottom, kerf, s.bottom ?? true);
+  const bottom = edgeProfile(w, tooth, t, edges.bottom, kerf, s.bottom ?? true, style);
   for (const p of bottom) out.push({ x: p.x, y: -p.y });
 
   // right edge: along +y at x=w, outward = +x
-  const right = edgeProfile(h, tooth, t, edges.right, kerf, s.right ?? true);
+  const right = edgeProfile(h, tooth, t, edges.right, kerf, s.right ?? true, style);
   for (let i = 1; i < right.length; i++) {
     out.push({ x: w + right[i].y, y: right[i].x });
   }
 
   // top edge: along -x at y=h, outward = +y
-  const top = edgeProfile(w, tooth, t, edges.top, kerf, s.top ?? true);
+  const top = edgeProfile(w, tooth, t, edges.top, kerf, s.top ?? true, style);
   for (let i = 1; i < top.length; i++) {
     out.push({ x: w - top[i].x, y: h + top[i].y });
   }
 
   // left edge: along -y at x=0, outward = -x
-  const left = edgeProfile(h, tooth, t, edges.left, kerf, s.left ?? true);
+  const left = edgeProfile(h, tooth, t, edges.left, kerf, s.left ?? true, style);
   for (let i = 1; i < left.length - 1; i++) {
     out.push({ x: -left[i].y, y: h - left[i].x });
   }
