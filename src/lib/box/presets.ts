@@ -151,19 +151,5 @@ export const presets: Preset[] = [
       tooth: 10,
     },
   },
-  {
-    id: "deep-storage",
-    name: "Deep Storage Bin",
-    description: "Tall single open bin",
-    config: {
-      ...defaultConfig,
-      length: 180,
-      height: 160,
-      depth: 140,
-      cols: 1,
-      rows: 1,
-      tooth: 12,
-    },
-  },
 ];
 
