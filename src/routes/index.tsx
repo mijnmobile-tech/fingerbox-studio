@@ -60,7 +60,7 @@ function App() {
       {/* Header */}
       <header className="flex items-center justify-between border-b border-border bg-panel px-5 py-3">
         <div className="flex items-baseline gap-3">
-          <span className="flex items-center gap-2 font-display text-xl font-700 text-foreground">
+          <span className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
             <BoxIcon className="h-5 w-5 text-primary" strokeWidth={2.4} />
             Box <span className="text-primary">Studio</span>
           </span>
@@ -221,7 +221,7 @@ function App() {
 
           <div className="pointer-events-none absolute left-6 top-6 rounded-sm border border-border bg-panel/85 px-4 py-3 backdrop-blur-sm">
             <p className="label-caps text-muted-foreground">Interior volume</p>
-            <p className="text-2xl font-700 tabular-nums text-foreground">
+            <p className="text-2xl font-bold tabular-nums text-foreground">
               {box.volume.toLocaleString("en-US")}{" "}
               <span className="text-sm text-muted-foreground">mm³</span>
             </p>
