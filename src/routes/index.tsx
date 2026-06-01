@@ -226,6 +226,25 @@ function App() {
                 value={view}
                 onChange={(v) => setView(v as ViewPreset)}
               />
+              <Toggle
+                label="Exploded view"
+                checked={exploded > 0}
+                onChange={(on) => setExploded(on ? 0.5 : 0)}
+              />
+              {exploded > 0 && (
+                <div className="space-y-1.5">
+                  <FieldLabel value={`${Math.round(exploded * 100)}%`}>
+                    Explode amount
+                  </FieldLabel>
+                  <Slider
+                    value={exploded}
+                    onChange={setExploded}
+                    min={0.05}
+                    max={1}
+                    step={0.05}
+                  />
+                </div>
+              )}
             </Section>
           </div>
 
@@ -245,7 +264,7 @@ function App() {
 
         {/* Canvas */}
         <main className="relative min-w-0 flex-1">
-          <Viewer3D box={box} view={view} />
+          <Viewer3D box={box} view={view} exploded={exploded} />
 
           <div className="pointer-events-none absolute left-6 top-6 rounded-sm border border-border bg-panel/85 px-4 py-3 backdrop-blur-sm">
             <p className="label-caps text-muted-foreground">Interior volume</p>
