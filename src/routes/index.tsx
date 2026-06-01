@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Download, Zap, Box as BoxIcon } from "lucide-react";
 import { buildBox } from "@/lib/box/geometry";
 import { buildSvg, downloadSvg } from "@/lib/box/svg";
