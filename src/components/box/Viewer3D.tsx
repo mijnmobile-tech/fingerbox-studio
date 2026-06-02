@@ -245,13 +245,16 @@ export function Viewer3D({ box, view, exploded = 0 }: Props) {
       let uxm: THREE.Vector3, uym: THREE.Vector3, uzm: THREE.Vector3;
       if (ti === 1) {
         // thickness along Y (front/back, Y-divider) — plane XZ
+        // outline-y=0 is the box TOP edge, so it must map to higher Z (up):
+        // increasing outline-y goes DOWN in model space.
         uxm = toThree(1, 0, 0);
-        uym = toThree(0, 0, 1);
+        uym = toThree(0, 0, -1);
         uzm = toThree(0, 1, 0);
       } else if (ti === 0) {
         // thickness along X (left/right, X-divider) — plane YZ
+        // outline-y=0 is the box TOP edge -> map to higher Z (up).
         uxm = toThree(0, 1, 0);
-        uym = toThree(0, 0, 1);
+        uym = toThree(0, 0, -1);
         uzm = toThree(1, 0, 0);
       } else {
         // thickness along Z (plates) — plane XY
