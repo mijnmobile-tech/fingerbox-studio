@@ -333,7 +333,24 @@ function buildSideOutline(
     pushPoint(pts, 0, i * fh);
   }
 
-  return pts;
+  const holes: Point[][] = [];
+  if (closeTopSlots) {
+    for (const x of slotPositions) {
+      const x1 = x - slotWidth / 2;
+      const x2 = x + slotWidth / 2;
+      if (x1 < 0 || x2 > D) continue;
+      const y1 = t;
+      const y2 = t + slotDepth;
+      holes.push([
+        { x: x1, y: y1 },
+        { x: x2, y: y1 },
+        { x: x2, y: y2 },
+        { x: x1, y: y2 },
+      ]);
+    }
+  }
+
+  return { pts, holes };
 }
 
 function buildDividerOutline(
