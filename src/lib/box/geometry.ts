@@ -1,190 +1,289 @@
-import type {
-  BoxConfig,
-  BuiltBox,
-  EdgeMode,
-  FingerStyle,
-  Panel,
-  PanelEdges,
-  Point,
-} from "./types";
+import type { BoxConfig, BuiltBox, Panel, Point } from "./types";
 
-/** Number of fingers (always odd so edges start & end with the same finger type). */
 function fingerCount(length: number, tooth: number): { n: number; fw: number } {
   let n = Math.max(1, Math.round(length / Math.max(tooth, 0.5)));
-  if (n % 2 === 0) n -= 1;
-  if (n < 1) n = 1;
+  if (n % 2 === 0) n += 1;
   return { n, fw: length / n };
 }
 
-function clamp(v: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, v));
-}
-
-interface ProfileOpts {
-  length: number;
-  tooth: number;
-  thickness: number;
-  mode: EdgeMode;
-  kerf: number;
-  /** Whether the first finger in the region protrudes (tab) / is cut (slot). */
-  startTab: boolean;
-  style: FingerStyle;
-  /** Length of the central fingered region; the rest is flat margin. */
-  region?: number;
-}
-
-/**
- * Generate the profile of a single edge running from x=0 to x=length.
- * `y` is the OUTWARD amount: tabs protrude to +depth, slots cut to -depth.
- * Teeth have vertical walls (square) for the "box" style; "dovetail" and
- * "chamfer" only re-shape the tab tips, keeping mating edges complementary.
- */
-function edgeProfile(opts: ProfileOpts): Point[] {
-  const { length, tooth, thickness, mode, kerf, startTab, style } = opts;
-  if (mode === "flat" || length <= 0) {
-    return [
-      { x: 0, y: 0 },
-      { x: length, y: 0 },
-    ];
+function pushPoint(points: Point[], x: number, y: number) {
+  const prev = points[points.length - 1];
+  if (!prev || Math.abs(prev.x - x) > 1e-6 || Math.abs(prev.y - y) > 1e-6) {
+    points.push({ x, y });
   }
+}
 
-  const region = Math.min(opts.region ?? length, length);
-  const margin = (length - region) / 2;
-  const { n, fw } = fingerCount(region, tooth);
-  const depth = mode === "tab" ? thickness : -thickness;
+function featureOnIndex(i: number, flip = false) {
+  return flip ? i % 2 === 0 : i % 2 !== 0;
+}
+
+function topSlots(
+  points: Point[],
+  xFrom: number,
+  xTo: number,
+  yTop: number,
+  positions: number[],
+  slotWidth: number,
+  depth: number,
+) {
+  const sorted = [...positions]
+    .filter((x) => x - slotWidth / 2 >= xFrom && x + slotWidth / 2 <= xTo)
+    .sort((a, b) => a - b);
+
+  for (const x of sorted) {
+    pushPoint(points, x - slotWidth / 2, yTop);
+    pushPoint(points, x - slotWidth / 2, yTop + depth);
+    pushPoint(points, x + slotWidth / 2, yTop + depth);
+    pushPoint(points, x + slotWidth / 2, yTop);
+  }
+  pushPoint(points, xTo, yTop);
+}
+
+function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf: number) {
+  const { n: nW, fw } = fingerCount(W, tooth);
+  const { n: nD, fw: fd } = fingerCount(D, tooth);
   const k = kerf / 2;
-
-  // tip re-shaping amount for non-box styles
-  const shape = Math.min(fw * 0.18, thickness * 0.6);
-
   const pts: Point[] = [];
-  const push = (x: number, y: number) => pts.push({ x: clamp(x, 0, length), y });
 
-  push(0, 0);
-  if (margin > 1e-6) push(margin, 0);
-
-  let prevY = 0;
-
-  // emit a transition between two y-levels at boundary x, with kerf + styling.
-  const transition = (boundaryX: number, fromY: number, toY: number) => {
-    const enteringFeature = toY === depth; // baseline -> feature
-    const xb = boundaryX + (enteringFeature ? -k : k);
-    if (style === "box") {
-      push(xb, fromY);
-      push(xb, toY);
-      return;
+  pushPoint(pts, 0, 0);
+  for (let i = 0; i < nW; i++) {
+    const x1 = i * fw + k;
+    const x2 = (i + 1) * fw - k;
+    if (featureOnIndex(i, false)) {
+      pushPoint(pts, x1, 0);
+      pushPoint(pts, x1, -t);
+      pushPoint(pts, x2, -t);
+      pushPoint(pts, x2, 0);
     }
-    // dovetail flares the deep corner outward, chamfer pulls it inward.
-    const flare = style === "dovetail" ? shape : -shape;
-    if (enteringFeature) {
-      push(xb, fromY);
-      push(xb - flare, toY);
-    } else {
-      push(xb + flare, fromY);
-      push(xb, toY);
-    }
-  };
-
-  for (let i = 0; i < n; i++) {
-    const boundaryX = margin + i * fw;
-    const isTab = (i % 2 === 0) === startTab;
-    const segY = isTab ? depth : 0;
-    if (segY !== prevY) {
-      transition(boundaryX, prevY, segY);
-      prevY = segY;
-    }
+    pushPoint(pts, (i + 1) * fw, 0);
   }
-
-  // close the region back to baseline
-  if (prevY !== 0) {
-    transition(margin + region, prevY, 0);
-    prevY = 0;
+  for (let i = 0; i < nD; i++) {
+    const y1 = i * fd + k;
+    const y2 = (i + 1) * fd - k;
+    if (featureOnIndex(i, false)) {
+      pushPoint(pts, W, y1);
+      pushPoint(pts, W + t, y1);
+      pushPoint(pts, W + t, y2);
+      pushPoint(pts, W, y2);
+    }
+    pushPoint(pts, W, (i + 1) * fd);
   }
-  push(length, 0);
+  for (let i = nW - 1; i >= 0; i--) {
+    const x1 = (i + 1) * fw - k;
+    const x2 = i * fw + k;
+    if (featureOnIndex(i, false)) {
+      pushPoint(pts, x1, D);
+      pushPoint(pts, x1, D + t);
+      pushPoint(pts, x2, D + t);
+      pushPoint(pts, x2, D);
+    }
+    pushPoint(pts, i * fw, D);
+  }
+  for (let i = nD - 1; i >= 0; i--) {
+    const y1 = (i + 1) * fd - k;
+    const y2 = i * fd + k;
+    if (featureOnIndex(i, false)) {
+      pushPoint(pts, 0, y1);
+      pushPoint(pts, -t, y1);
+      pushPoint(pts, -t, y2);
+      pushPoint(pts, 0, y2);
+    }
+    pushPoint(pts, 0, i * fd);
+  }
   return pts;
 }
 
-interface RectPanelOpts {
-  width: number;
-  height: number;
-  tooth: number;
-  thickness: number;
-  kerf: number;
-  edges: PanelEdges;
-  style: FingerStyle;
-  /** Central fingered region length per edge (defaults to the edge length). */
-  region?: Partial<Record<keyof PanelEdges, number>>;
+function buildFrontBackOutline(
+  W: number,
+  H: number,
+  t: number,
+  tooth: number,
+  kerf: number,
+  slotPositions: number[],
+) {
+  const { n: nW, fw } = fingerCount(W, tooth);
+  const { n: nH, fw: fh } = fingerCount(H, tooth);
+  const k = kerf / 2;
+  const slotWidth = t + kerf;
+  const slotDepth = H / 2;
+  const pts: Point[] = [];
+
+  pushPoint(pts, 0, 0);
+  topSlots(pts, 0, W, 0, slotPositions, slotWidth, slotDepth);
+
+  for (let i = 0; i < nH; i++) {
+    const y1 = i * fh + k;
+    const y2 = (i + 1) * fh - k;
+    if (featureOnIndex(i, true)) {
+      if (i === 0) {
+        pushPoint(pts, W + t, y1);
+        pushPoint(pts, W + t, y2);
+      } else if (i === nH - 1) {
+        pushPoint(pts, W, y1);
+        pushPoint(pts, W + t, y1);
+        pushPoint(pts, W + t, H);
+        pushPoint(pts, W + t, H + t);
+      } else {
+        pushPoint(pts, W, y1);
+        pushPoint(pts, W + t, y1);
+        pushPoint(pts, W + t, y2);
+        pushPoint(pts, W, y2);
+      }
+    }
+    if (!(featureOnIndex(i, true) && i === nH - 1)) {
+      pushPoint(pts, W, (i + 1) * fh);
+    }
+  }
+
+  for (let i = nW - 1; i >= 0; i--) {
+    const x1 = (i + 1) * fw - k;
+    const x2 = i * fw + k;
+    if (featureOnIndex(i, false)) {
+      pushPoint(pts, x1, H + t);
+      pushPoint(pts, x1, H);
+      pushPoint(pts, x2, H);
+      pushPoint(pts, x2, H + t);
+    }
+    pushPoint(pts, i * fw, H + t);
+  }
+
+  pushPoint(pts, -t, H + t);
+  pushPoint(pts, -t, H);
+  for (let i = nH - 1; i >= 0; i--) {
+    const y1 = (i + 1) * fh - k;
+    const y2 = i * fh + k;
+    if (featureOnIndex(i, true)) {
+      if (i === nH - 1) {
+        pushPoint(pts, -t, y1);
+        pushPoint(pts, -t, y2);
+        pushPoint(pts, 0, y2);
+      } else {
+        pushPoint(pts, 0, y1);
+        pushPoint(pts, -t, y1);
+        pushPoint(pts, -t, y2);
+        pushPoint(pts, 0, y2);
+      }
+    }
+    pushPoint(pts, 0, i * fh);
+  }
+
+  return pts;
 }
 
-/**
- * Build a rectangular panel outline of nominal size width x height with
- * finger-jointed edges. Tabs extend OUTSIDE the nominal rectangle, slots cut in.
- * Traversed counter-clockwise. All edges start with the same finger parity so
- * a tab edge always mates with the slot edge of the neighbouring panel.
- */
-function rectPanel(opts: RectPanelOpts): Point[] {
-  const { width: w, height: h, tooth, thickness: t, kerf, edges, style } = opts;
-  const r = opts.region ?? {};
-  const out: Point[] = [];
+function buildSideOutline(
+  D: number,
+  H: number,
+  t: number,
+  tooth: number,
+  kerf: number,
+  slotPositions: number[],
+) {
+  const { n: nD, fw: fd } = fingerCount(D, tooth);
+  const { n: nH, fw: fh } = fingerCount(H, tooth);
+  const k = kerf / 2;
+  const slotWidth = t + kerf;
+  const slotDepth = H / 2;
+  const pts: Point[] = [];
 
-  // bottom edge: along +x at y=0, outward = -y
-  const bottom = edgeProfile({
-    length: w,
-    tooth,
-    thickness: t,
-    mode: edges.bottom,
-    kerf,
-    startTab: true,
-    style,
-    region: r.bottom,
-  });
-  for (const p of bottom) out.push({ x: p.x, y: -p.y });
+  pushPoint(pts, 0, 0);
+  topSlots(pts, 0, D, 0, slotPositions, slotWidth, slotDepth);
 
-  // right edge: along +y at x=w, outward = +x
-  const right = edgeProfile({
-    length: h,
-    tooth,
-    thickness: t,
-    mode: edges.right,
-    kerf,
-    startTab: true,
-    style,
-    region: r.right,
-  });
-  for (let i = 1; i < right.length; i++) {
-    out.push({ x: w + right[i].y, y: right[i].x });
+  for (let i = 0; i < nH; i++) {
+    const y1 = i * fh + k;
+    const y2 = (i + 1) * fh - k;
+    if (featureOnIndex(i, false)) {
+      pushPoint(pts, D, y1);
+      pushPoint(pts, D + t, y1);
+      pushPoint(pts, D + t, y2);
+      pushPoint(pts, D, y2);
+    }
+    pushPoint(pts, D, (i + 1) * fh);
+  }
+  pushPoint(pts, D, H + t);
+
+  for (let i = nD - 1; i >= 0; i--) {
+    const x1 = (i + 1) * fd - k;
+    const x2 = i * fd + k;
+    if (featureOnIndex(i, false)) {
+      pushPoint(pts, x1, H + t);
+      pushPoint(pts, x1, H);
+      pushPoint(pts, x2, H);
+      pushPoint(pts, x2, H + t);
+    }
+    pushPoint(pts, i * fd, H + t);
   }
 
-  // top edge: along -x at y=h, outward = +y
-  const top = edgeProfile({
-    length: w,
-    tooth,
-    thickness: t,
-    mode: edges.top,
-    kerf,
-    startTab: true,
-    style,
-    region: r.top,
-  });
-  for (let i = 1; i < top.length; i++) {
-    out.push({ x: w - top[i].x, y: h + top[i].y });
+  pushPoint(pts, 0, H);
+  for (let i = nH - 1; i >= 0; i--) {
+    const y1 = (i + 1) * fh - k;
+    const y2 = i * fh + k;
+    if (featureOnIndex(i, false)) {
+      pushPoint(pts, 0, y1);
+      pushPoint(pts, -t, y1);
+      pushPoint(pts, -t, y2);
+      pushPoint(pts, 0, y2);
+    }
+    pushPoint(pts, 0, i * fh);
   }
 
-  // left edge: along -y at x=0, outward = -x
-  const left = edgeProfile({
-    length: h,
-    tooth,
-    thickness: t,
-    mode: edges.left,
-    kerf,
-    startTab: true,
-    style,
-    region: r.left,
-  });
-  for (let i = 1; i < left.length - 1; i++) {
-    out.push({ x: -left[i].y, y: h - left[i].x });
+  return pts;
+}
+
+function buildDividerOutline(
+  length: number,
+  height: number,
+  t: number,
+  crossCount: number,
+  crossSpacing: number,
+  slotFromTop: boolean,
+  kerf: number,
+) {
+  const bx = t;
+  const by = 0;
+  const sw = t + kerf * 2;
+  const sh = height / 2;
+  const pts: Point[] = [];
+
+  pushPoint(pts, bx, by + height);
+  if (!slotFromTop) {
+    for (let s = 1; s < crossCount; s++) {
+      const cp = s * crossSpacing;
+      pushPoint(pts, bx + cp - sw / 2, by + height);
+      pushPoint(pts, bx + cp - sw / 2, by + sh);
+      pushPoint(pts, bx + cp + sw / 2, by + sh);
+      pushPoint(pts, bx + cp + sw / 2, by + height);
+    }
   }
-  return out;
+  pushPoint(pts, bx + length, by + height);
+  pushPoint(pts, bx + length, by + sh);
+  pushPoint(pts, bx + length + t, by + sh);
+  pushPoint(pts, bx + length + t, by);
+  pushPoint(pts, bx + length, by);
+
+  if (slotFromTop) {
+    for (let s = crossCount - 1; s >= 1; s--) {
+      const cp = s * crossSpacing;
+      pushPoint(pts, bx + cp + sw / 2, by);
+      pushPoint(pts, bx + cp + sw / 2, by + sh);
+      pushPoint(pts, bx + cp - sw / 2, by + sh);
+      pushPoint(pts, bx + cp - sw / 2, by);
+    }
+  }
+
+  pushPoint(pts, bx, by);
+  pushPoint(pts, bx - t, by);
+  pushPoint(pts, bx - t, by + sh);
+  pushPoint(pts, bx, by + sh);
+  return pts;
+}
+
+function buildRectOutline(width: number, height: number) {
+  return [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height },
+  ];
 }
 
 function bounds(pts: Point[]) {
@@ -219,7 +318,7 @@ function resolveInterior(cfg: BoxConfig) {
   if (cfg.measure === "exterior") {
     return {
       length: Math.max(1, cfg.length - 2 * t),
-      height: Math.max(1, cfg.height - (cfg.lid ? 2 : 1) * t),
+      height: Math.max(1, cfg.height - t),
       depth: Math.max(1, cfg.depth - 2 * t),
     };
   }
@@ -234,247 +333,104 @@ function resolveInterior(cfg: BoxConfig) {
 export function buildBox(cfg: BoxConfig): BuiltBox {
   const t = cfg.thickness;
   const interior = resolveInterior(cfg);
-  const W = interior.length; // X
-  const D = interior.depth; // Y
-  const H = interior.height; // Z
+  const W = interior.length;
+  const H = interior.height;
+  const D = interior.depth;
 
   const OW = W + 2 * t;
   const OD = D + 2 * t;
-  const OH = H + (cfg.lid ? 2 : 1) * t;
-
-  const finger = cfg.joint === "finger";
-  const tab = (m: EdgeMode): EdgeMode => (finger ? m : "flat");
-
+  const OH = H + t;
+  const useFinger = cfg.joint === "finger";
   const panels: Panel[] = [];
 
-  // ---- Front / Back walls (in XZ plane). ----
-  // nominal rect = (OW - 2t) wide x OH tall. Vertical edges = tabs (fill the
-  // corners), horizontal edges = tabs into the plates over the full width.
-  const fbW = OW - 2 * t;
-  const fbEdges: PanelEdges = {
-    bottom: tab("tab"),
-    top: cfg.lid ? tab("tab") : "flat",
-    left: tab("tab"),
-    right: tab("tab"),
-  };
-  for (const which of ["Front", "Back"] as const) {
-    const raw = rectPanel({
-      width: fbW,
-      height: H,
-      tooth: cfg.tooth,
-      thickness: t,
-      kerf: cfg.kerf,
-      edges: fbEdges,
-      style: cfg.fingerStyle,
-    });
+  const pushPanel = (
+    id: string,
+    label: string,
+    raw: Point[],
+    size: [number, number, number],
+    pos: [number, number, number],
+  ) => {
     const nz = normalize(raw);
-    panels.push({
-      id: which.toLowerCase(),
-      label: which,
-      outline: nz.pts,
-      holes: [],
-      width: nz.w,
-      height: nz.h,
-      placement: {
-        size: [nz.w, t, nz.h],
-        pos: [0, which === "Front" ? -OD / 2 + t / 2 : OD / 2 - t / 2, 0],
-      },
-    });
-  }
-
-  // ---- Left / Right walls (in YZ plane). ----
-  // Full OD wide. Vertical edges = slots (receive the front/back tabs). The
-  // horizontal edges only finger the inner OD-2t span (the part over the plate),
-  // leaving a t margin at each corner so they match the smaller plate edge.
-  const lrEdges: PanelEdges = {
-    bottom: tab("tab"),
-    top: cfg.lid ? tab("tab") : "flat",
-    left: tab("slot"),
-    right: tab("slot"),
-  };
-  const lrRegion = { bottom: OD - 2 * t, top: OD - 2 * t };
-  for (const which of ["Left", "Right"] as const) {
-    const raw = rectPanel({
-      width: OD,
-      height: H,
-      tooth: cfg.tooth,
-      thickness: t,
-      kerf: cfg.kerf,
-      edges: lrEdges,
-      style: cfg.fingerStyle,
-      region: lrRegion,
-    });
-    const nz = normalize(raw);
-    panels.push({
-      id: which.toLowerCase(),
-      label: which,
-      outline: nz.pts,
-      holes: [],
-      width: nz.w,
-      height: nz.h,
-      placement: {
-        size: [t, nz.w, nz.h],
-        pos: [which === "Left" ? -OW / 2 + t / 2 : OW / 2 - t / 2, 0, 0],
-      },
-    });
-  }
-
-  // ---- Bottom / Top plates (in XY plane). Slot on all edges. ----
-  // size = (OW-2t) x (OD-2t). Its X-edges mate with front/back bottom tabs,
-  // its Y-edges mate with the left/right wall fingered region (also OD-2t).
-  const plateEdges: PanelEdges = {
-    bottom: tab("slot"),
-    top: tab("slot"),
-    left: tab("slot"),
-    right: tab("slot"),
-  };
-  const makePlate = (id: string, label: string, zPos: number) => {
-    const raw = rectPanel({
-      width: OW - 2 * t,
-      height: OD - 2 * t,
-      tooth: cfg.tooth,
-      thickness: t,
-      kerf: cfg.kerf,
-      edges: plateEdges,
-      style: cfg.fingerStyle,
-    });
-    // divider slots in the plate
-    const holes: Point[][] = [];
-    const b = bounds(raw);
-    const innerW = OW - 2 * t;
-    const innerD = OD - 2 * t;
-    if (cfg.dividersX && cfg.cols > 1 && finger) {
-      for (let c = 1; c < cfg.cols; c++) {
-        const x = b.minX + (innerW * c) / cfg.cols;
-        holes.push(slotRect(x, b.minY + innerD / 2, t, innerD - 4 * t, "v"));
-      }
-    }
-    if (cfg.dividersY && cfg.rows > 1 && finger) {
-      for (let r = 1; r < cfg.rows; r++) {
-        const y = b.minY + (innerD * r) / cfg.rows;
-        holes.push(slotRect(b.minX + innerW / 2, y, innerW - 4 * t, t, "h"));
-      }
-    }
-    const nz = normalize(raw);
-    const dx = nz.pts[0].x - raw[0].x;
-    const dy = nz.pts[0].y - raw[0].y;
     panels.push({
       id,
       label,
       outline: nz.pts,
-      holes: holes.map((h) => h.map((p) => ({ x: p.x + dx, y: p.y + dy }))),
+      holes: [],
       width: nz.w,
       height: nz.h,
-      placement: {
-        size: [nz.w, nz.h, t],
-        pos: [0, 0, zPos],
-      },
+      placement: { size, pos },
     });
   };
-  makePlate("bottom", "Bottom", -OH / 2 + t / 2);
-  if (cfg.lid) makePlate("top", "Top", OH / 2 - t / 2);
 
-  // ---- Dividers (cross-lapped grid) ----
-  if (finger) {
-    if (cfg.dividersX && cfg.cols > 1) {
-      for (let c = 1; c < cfg.cols; c++) {
-        const p = makeDivider(`div-x-${c}`, `Divider X${c}`, D, H, t, cfg, "x");
-        const xPos = -W / 2 + (W * c) / cfg.cols;
-        p.placement = { size: [t, D, H], pos: [xPos, 0, -OH / 2 + t + H / 2] };
-        panels.push(p);
-      }
-    }
-    if (cfg.dividersY && cfg.rows > 1) {
-      for (let r = 1; r < cfg.rows; r++) {
-        const p = makeDivider(`div-y-${r}`, `Divider Y${r}`, W, H, t, cfg, "y");
-        const yPos = -D / 2 + (D * r) / cfg.rows;
-        p.placement = { size: [W, t, H], pos: [0, yPos, -OH / 2 + t + H / 2] };
-        panels.push(p);
-      }
+  const divXSlots = cfg.dividersX && cfg.cols > 1
+    ? Array.from({ length: cfg.cols - 1 }, (_, i) => ((i + 1) * W) / cfg.cols)
+    : [];
+  const divYSlots = cfg.dividersY && cfg.rows > 1
+    ? Array.from({ length: cfg.rows - 1 }, (_, i) => ((i + 1) * D) / cfg.rows)
+    : [];
+
+  pushPanel(
+    "bottom",
+    "Bottom",
+    useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf) : buildRectOutline(W, D),
+    [useFinger ? OW : W, useFinger ? OD : D, t],
+    [0, 0, t / 2],
+  );
+
+  const frontRaw = useFinger
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots)
+    : buildRectOutline(W, OH);
+  const backRaw = useFinger
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots)
+    : buildRectOutline(W, OH);
+  pushPanel("front", "Front", frontRaw, [useFinger ? OW : W, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
+  pushPanel("back", "Back", backRaw, [useFinger ? OW : W, t, OH], [0, D / 2 + t / 2, OH / 2]);
+
+  const sideRaw = useFinger
+    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots)
+    : buildRectOutline(D, OH);
+  pushPanel("left", "Left", sideRaw, [t, useFinger ? OD : D, OH], [-(W / 2 + t / 2), 0, OH / 2]);
+  pushPanel("right", "Right", sideRaw, [t, useFinger ? OD : D, OH], [W / 2 + t / 2, 0, OH / 2]);
+
+  if (cfg.lid) {
+    pushPanel("top", "Top", buildRectOutline(OW, OD), [OW, OD, t], [0, 0, OH + t / 2]);
+  }
+
+  if (cfg.dividersY && cfg.rows > 1) {
+    for (let r = 1; r < cfg.rows; r++) {
+      const raw = useFinger
+        ? buildDividerOutline(W, H, t, cfg.cols, W / cfg.cols, true, cfg.kerf)
+        : buildRectOutline(W, H);
+      pushPanel(
+        `div-y-${r}`,
+        `Divider Y${r}`,
+        raw,
+        [useFinger ? OW : W, t, H],
+        [0, -D / 2 + (r * D) / cfg.rows, t + H / 2],
+      );
     }
   }
 
-  const volume = W * D * H;
+  if (cfg.dividersX && cfg.cols > 1) {
+    for (let c = 1; c < cfg.cols; c++) {
+      const raw = useFinger
+        ? buildDividerOutline(D, H, t, cfg.rows, D / cfg.rows, false, cfg.kerf)
+        : buildRectOutline(D, H);
+      pushPanel(
+        `div-x-${c}`,
+        `Divider X${c}`,
+        raw,
+        [t, useFinger ? OD : D, H],
+        [-W / 2 + (c * W) / cfg.cols, 0, t + H / 2],
+      );
+    }
+  }
+
   return {
     panels,
     interior: { length: W, height: H, depth: D },
     exterior: { length: OW, height: OH, depth: OD },
-    volume,
+    volume: W * D * H,
     cells: { x: cfg.cols, y: cfg.rows },
-  };
-}
-
-/** Axis-aligned rectangular slot (clockwise hole) centred at (cx,cy). */
-function slotRect(
-  cx: number,
-  cy: number,
-  w: number,
-  h: number,
-  _dir: "h" | "v",
-): Point[] {
-  const hw = w / 2;
-  const hh = h / 2;
-  return [
-    { x: cx - hw, y: cy - hh },
-    { x: cx - hw, y: cy + hh },
-    { x: cx + hw, y: cy + hh },
-    { x: cx + hw, y: cy - hh },
-  ];
-}
-
-/**
- * Cross-lapped divider panel. `length` along its run, `height` vertical.
- * Bottom edge tabs into the base plate; the run edges are flat; cross-lap
- * notches let X and Y dividers interlock.
- */
-function makeDivider(
-  id: string,
-  label: string,
-  length: number,
-  height: number,
-  t: number,
-  cfg: BoxConfig,
-  axis: "x" | "y",
-): Panel {
-  const edges: PanelEdges = {
-    bottom: "tab",
-    top: "flat",
-    left: "flat",
-    right: "flat",
-  };
-  const raw = rectPanel({
-    width: length,
-    height,
-    tooth: cfg.tooth,
-    thickness: t,
-    kerf: cfg.kerf,
-    edges,
-    style: cfg.fingerStyle,
-  });
-  const b = bounds(raw);
-  const holes: Point[][] = [];
-  // cross-lap notches: X dividers notch from top, Y dividers from bottom
-  const crossCount = axis === "x" ? cfg.rows : cfg.cols;
-  const crossOn = axis === "x" ? cfg.dividersY : cfg.dividersX;
-  if (crossOn && crossCount > 1) {
-    for (let i = 1; i < crossCount; i++) {
-      const along = b.minX + (length * i) / crossCount;
-      // half-height open notch (rendered as a hole that breaks one edge visually)
-      const half = height / 2;
-      const yc = axis === "x" ? b.maxY - half / 2 : b.minY + half / 2;
-      holes.push(slotRect(along, yc, t + cfg.kerf, half, "v"));
-    }
-  }
-  const nz = normalize(raw);
-  const dx = nz.pts[0].x - raw[0].x;
-  const dy = nz.pts[0].y - raw[0].y;
-  return {
-    id,
-    label,
-    outline: nz.pts,
-    holes: holes.map((h) => h.map((p) => ({ x: p.x + dx, y: p.y + dy }))),
-    width: nz.w,
-    height: nz.h,
-    placement: { size: [t, length, height], pos: [0, 0, 0] },
   };
 }
