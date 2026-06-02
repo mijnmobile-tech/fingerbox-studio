@@ -46,6 +46,8 @@ export interface BoxConfig {
   kerf: number;
   /** Alternate teeth at corners */
   alternateCorners: boolean;
+  /** Add finger joints to the top edges of the walls (interlocking lid) */
+  topFingers: boolean;
   /** Include a top lid */
   lid: boolean;
 }
