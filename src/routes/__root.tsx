@@ -78,16 +78,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Box Studio" },
-      { name: "description", content: "Box Craft Pro is a web application for designing and generating finger joint boxes." },
+      { title: "Box Creator Pro" },
+      { name: "description", content: "Box Creator Pro is a web application for designing and generating finger joint boxes." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Box Studio" },
-      { property: "og:description", content: "Box Craft Pro is a web application for designing and generating finger joint boxes." },
+      { property: "og:title", content: "Box Creator Pro" },
+      { property: "og:description", content: "Box Creator Pro is a web application for designing and generating finger joint boxes." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Box Studio" },
-      { name: "twitter:description", content: "Box Craft Pro is a web application for designing and generating finger joint boxes." },
+      { name: "twitter:title", content: "Box Creator Pro" },
+      { name: "twitter:description", content: "Box Creator Pro is a web application for designing and generating finger joint boxes." },
     ],
     links: [
       {

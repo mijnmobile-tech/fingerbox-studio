@@ -20,13 +20,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Box Studio — Finger Joint Box Generator" },
+      { title: "Box Creator Pro — Finger Joint Box Generator" },
       {
         name: "description",
         content:
           "Design laser-cut finger joint boxes with grid dividers. Live 3D preview and instant SVG export for laser cutting.",
       },
-      { property: "og:title", content: "Box Studio — Finger Joint Box Generator" },
+      { property: "og:title", content: "Box Creator Pro — Finger Joint Box Generator" },
       {
         property: "og:description",
         content:
