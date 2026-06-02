@@ -290,7 +290,8 @@ function buildSideOutline(
   slotPositions: number[],
   includeTopFingerSlots: boolean,
   style: FingerStyle = "box",
-) {
+  closeTopSlots = false,
+): { pts: Point[]; holes: Point[][] } {
   const { n: nD, fw: fd } = fingerCount(D, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
   const k = kerf / 2;
@@ -299,7 +300,7 @@ function buildSideOutline(
   const pts: Point[] = [];
 
   traceTopEdge(pts, D, [
-    ...dividerTopEdgeSlots(D, slotPositions, slotWidth, slotDepth),
+    ...(closeTopSlots ? [] : dividerTopEdgeSlots(D, slotPositions, slotWidth, slotDepth)),
     ...(includeTopFingerSlots ? fingerTopEdgeSlots(D, tooth, t, kerf) : []),
   ]);
 
