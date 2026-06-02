@@ -58,22 +58,29 @@ function App() {
         ...c,
         material: id,
         thickness,
-        kerf: c.autoKerf ? advisedKerf(id, thickness) : c.kerf,
+        kerf: c.autoKerf ? advisedKerf(id, thickness, c.laser) : c.kerf,
       };
     });
+
+  const setLaser = (id: LaserId) =>
+    setCfg((c) => ({
+      ...c,
+      laser: id,
+      kerf: c.autoKerf ? advisedKerf(c.material, c.thickness, id) : c.kerf,
+    }));
 
   const setThickness = (thickness: number) =>
     setCfg((c) => ({
       ...c,
       thickness,
-      kerf: c.autoKerf ? advisedKerf(c.material, thickness) : c.kerf,
+      kerf: c.autoKerf ? advisedKerf(c.material, thickness, c.laser) : c.kerf,
     }));
 
   const setAutoKerf = (on: boolean) =>
     setCfg((c) => ({
       ...c,
       autoKerf: on,
-      kerf: on ? advisedKerf(c.material, c.thickness) : c.kerf,
+      kerf: on ? advisedKerf(c.material, c.thickness, c.laser) : c.kerf,
     }));
 
 
