@@ -289,10 +289,7 @@ function buildSideOutline(
     const y1 = i * fh + k;
     const y2 = (i + 1) * fh - k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, D, y1);
-      pushPoint(pts, D + t, y1);
-      pushPoint(pts, D + t, y2);
-      pushPoint(pts, D, y2);
+      emitTab(pts, D, y1, D, y2, t, 0, style);
     }
     pushPoint(pts, D, (i + 1) * fh);
   }
