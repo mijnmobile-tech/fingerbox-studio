@@ -5,8 +5,8 @@ import { Download, Zap, Box as BoxIcon } from "lucide-react";
 import { buildBox } from "@/lib/box/geometry";
 import { buildSvg, downloadSvg } from "@/lib/box/svg";
 import { defaultConfig, presets } from "@/lib/box/presets";
-import type { BoxConfig, MaterialId, MeasureMode, Units } from "@/lib/box/types";
-import { materials, getMaterial, advisedKerf } from "@/lib/box/materials";
+import type { BoxConfig, LaserId, MaterialId, MeasureMode, Units } from "@/lib/box/types";
+import { materials, lasers, getMaterial, getLaser, advisedKerf } from "@/lib/box/materials";
 import { Viewer3D, type ViewPreset } from "@/components/box/Viewer3D";
 import {
   FieldLabel,
@@ -58,22 +58,29 @@ function App() {
         ...c,
         material: id,
         thickness,
-        kerf: c.autoKerf ? advisedKerf(id, thickness) : c.kerf,
+        kerf: c.autoKerf ? advisedKerf(id, thickness, c.laser) : c.kerf,
       };
     });
+
+  const setLaser = (id: LaserId) =>
+    setCfg((c) => ({
+      ...c,
+      laser: id,
+      kerf: c.autoKerf ? advisedKerf(c.material, c.thickness, id) : c.kerf,
+    }));
 
   const setThickness = (thickness: number) =>
     setCfg((c) => ({
       ...c,
       thickness,
-      kerf: c.autoKerf ? advisedKerf(c.material, thickness) : c.kerf,
+      kerf: c.autoKerf ? advisedKerf(c.material, thickness, c.laser) : c.kerf,
     }));
 
   const setAutoKerf = (on: boolean) =>
     setCfg((c) => ({
       ...c,
       autoKerf: on,
-      kerf: on ? advisedKerf(c.material, c.thickness) : c.kerf,
+      kerf: on ? advisedKerf(c.material, c.thickness, c.laser) : c.kerf,
     }));
 
 
@@ -197,8 +204,29 @@ function App() {
                 <p className="text-[0.7rem] leading-snug text-muted-foreground">
                   {getMaterial(cfg.material).note}
                 </p>
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Laser cutter</FieldLabel>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {lasers.map((l) => (
+                    <button
+                      key={l.id}
+                      onClick={() => setLaser(l.id)}
+                      className={`rounded-sm border px-2 py-1.5 text-xs font-medium transition-colors ${
+                        cfg.laser === l.id
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border bg-field text-muted-foreground hover:border-primary"
+                      }`}
+                    >
+                      {l.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[0.7rem] leading-snug text-muted-foreground">
+                  {getLaser(cfg.laser).note}
+                </p>
                 <Toggle
-                  label={`Auto kerf (advised ${advisedKerf(cfg.material, cfg.thickness).toFixed(2)} mm)`}
+                  label={`Auto kerf (advised ${advisedKerf(cfg.material, cfg.thickness, cfg.laser).toFixed(2)} mm)`}
                   checked={cfg.autoKerf}
                   onChange={setAutoKerf}
                 />
