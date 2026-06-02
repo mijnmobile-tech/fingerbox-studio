@@ -59,6 +59,7 @@ export const presets: Preset[] = [
       height: 80,
       depth: 90,
       lid: true,
+      topFingers: true,
       cols: 1,
       rows: 1,
       tooth: 8,
