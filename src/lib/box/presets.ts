@@ -17,6 +17,7 @@ export const defaultConfig: BoxConfig = {
   tooth: 9,
   kerf: 0.1,
   alternateCorners: true,
+  topFingers: false,
   lid: false,
 };
 
@@ -58,6 +59,7 @@ export const presets: Preset[] = [
       height: 80,
       depth: 90,
       lid: true,
+      topFingers: true,
       cols: 1,
       rows: 1,
       tooth: 8,
@@ -123,6 +125,7 @@ export const presets: Preset[] = [
       cols: 3,
       rows: 3,
       lid: true,
+      topFingers: true,
       tooth: 7,
     },
   },
