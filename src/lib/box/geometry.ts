@@ -199,6 +199,7 @@ function buildFrontBackOutline(
   kerf: number,
   slotPositions: number[],
   includeTopFingerSlots: boolean,
+  style: FingerStyle = "box",
 ) {
   const { n: nW, fw } = fingerCount(W, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
