@@ -424,14 +424,6 @@ function bounds(pts: Point[]) {
   return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
 }
 
-function normalize(pts: Point[]): { pts: Point[]; w: number; h: number } {
-  const b = bounds(pts);
-  return {
-    pts: pts.map((p) => ({ x: p.x - b.minX, y: p.y - b.minY })),
-    w: b.w,
-    h: b.h,
-  };
-}
 
 /** Resolve interior dimensions from the chosen measurement mode. */
 function resolveInterior(cfg: BoxConfig) {
