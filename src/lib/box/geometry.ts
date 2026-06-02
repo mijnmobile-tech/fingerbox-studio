@@ -1,4 +1,4 @@
-import type { BoxConfig, BuiltBox, Panel, Point } from "./types";
+import type { BoxConfig, BuiltBox, FingerStyle, Panel, Point } from "./types";
 
 function fingerCount(length: number, tooth: number): { n: number; fw: number } {
   let n = Math.max(1, Math.round(length / Math.max(tooth, 0.5)));
