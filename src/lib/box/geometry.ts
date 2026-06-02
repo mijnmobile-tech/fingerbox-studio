@@ -16,77 +16,92 @@ function fingerCount(length: number, tooth: number): { n: number; fw: number } {
   return { n, fw: length / n };
 }
 
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v));
+}
+
+interface ProfileOpts {
+  length: number;
+  tooth: number;
+  thickness: number;
+  mode: EdgeMode;
+  kerf: number;
+  /** Whether the first finger in the region protrudes (tab) / is cut (slot). */
+  startTab: boolean;
+  style: FingerStyle;
+  /** Length of the central fingered region; the rest is flat margin. */
+  region?: number;
+}
+
 /**
- * Generate the profile of a single edge running from (0,0) to (length,0).
- * Outward (tab protrusion) is +y. Slots cut to -y.
- * Returns points from x=0 to x=length.
+ * Generate the profile of a single edge running from x=0 to x=length.
+ * `y` is the OUTWARD amount: tabs protrude to +depth, slots cut to -depth.
+ * Teeth have vertical walls (square) for the "box" style; "dovetail" and
+ * "chamfer" only re-shape the tab tips, keeping mating edges complementary.
  */
-function edgeProfile(
-  length: number,
-  tooth: number,
-  thickness: number,
-  mode: EdgeMode,
-  kerf: number,
-  startExtended: boolean,
-  style: FingerStyle,
-): Point[] {
+function edgeProfile(opts: ProfileOpts): Point[] {
+  const { length, tooth, thickness, mode, kerf, startTab, style } = opts;
   if (mode === "flat" || length <= 0) {
     return [
       { x: 0, y: 0 },
       { x: length, y: 0 },
     ];
   }
-  const { n, fw } = fingerCount(length, tooth);
+
+  const region = Math.min(opts.region ?? length, length);
+  const margin = (length - region) / 2;
+  const { n, fw } = fingerCount(region, tooth);
   const depth = mode === "tab" ? thickness : -thickness;
   const k = kerf / 2;
-  // grow direction: widen tabs, shrink slot notches for a snug press fit
-  const grow = mode === "tab" ? 1 : -1;
 
-  const isExtended = (i: number) => (i % 2 === 0) === startExtended;
-
-  // shaping deltas for non-box profiles
-  const dove = Math.min(fw * 0.22, Math.abs(depth) * 0.7);
-  const cham = Math.min(fw * 0.2, Math.abs(depth) * 0.7);
+  // tip re-shaping amount for non-box styles
+  const shape = Math.min(fw * 0.18, thickness * 0.6);
 
   const pts: Point[] = [];
-  pts.push({ x: 0, y: isExtended(0) ? depth : 0 });
+  const push = (x: number, y: number) => pts.push({ x: clamp(x, 0, length), y });
 
-  for (let i = 1; i < n; i++) {
-    const x = i * fw;
-    const prevExt = isExtended(i - 1);
-    const curExt = isExtended(i);
-    const shift = (prevExt ? grow : -grow) * k;
-    const xb = clamp(x + shift, 0, length);
+  push(0, 0);
+  if (margin > 1e-6) push(margin, 0);
 
-    if (style === "dovetail") {
-      // tabs flare wider toward their tip (depth level)
-      if (prevExt) {
-        pts.push({ x: clamp(xb + dove, 0, length), y: depth });
-        pts.push({ x: xb, y: 0 });
-      } else {
-        pts.push({ x: xb, y: 0 });
-        pts.push({ x: clamp(xb - dove, 0, length), y: depth });
-      }
-    } else if (style === "chamfer") {
-      // tabs narrow toward their tip (45° chamfered corners)
-      if (prevExt) {
-        pts.push({ x: clamp(xb - cham, 0, length), y: depth });
-        pts.push({ x: xb, y: 0 });
-      } else {
-        pts.push({ x: xb, y: 0 });
-        pts.push({ x: clamp(xb + cham, 0, length), y: depth });
-      }
+  let prevY = 0;
+
+  // emit a transition between two y-levels at boundary x, with kerf + styling.
+  const transition = (boundaryX: number, fromY: number, toY: number) => {
+    const enteringFeature = toY === depth; // baseline -> feature
+    const xb = boundaryX + (enteringFeature ? -k : k);
+    if (style === "box") {
+      push(xb, fromY);
+      push(xb, toY);
+      return;
+    }
+    // dovetail flares the deep corner outward, chamfer pulls it inward.
+    const flare = style === "dovetail" ? shape : -shape;
+    if (enteringFeature) {
+      push(xb, fromY);
+      push(xb - flare, toY);
     } else {
-      pts.push({ x: xb, y: prevExt ? depth : 0 });
-      pts.push({ x: xb, y: curExt ? depth : 0 });
+      push(xb + flare, fromY);
+      push(xb, toY);
+    }
+  };
+
+  for (let i = 0; i < n; i++) {
+    const boundaryX = margin + i * fw;
+    const isTab = (i % 2 === 0) === startTab;
+    const segY = isTab ? depth : 0;
+    if (segY !== prevY) {
+      transition(boundaryX, prevY, segY);
+      prevY = segY;
     }
   }
-  pts.push({ x: length, y: isExtended(n - 1) ? depth : 0 });
-  return pts;
-}
 
-function clamp(v: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, v));
+  // close the region back to baseline
+  if (prevY !== 0) {
+    transition(margin + region, prevY, 0);
+    prevY = 0;
+  }
+  push(length, 0);
+  return pts;
 }
 
 interface RectPanelOpts {
@@ -97,38 +112,75 @@ interface RectPanelOpts {
   kerf: number;
   edges: PanelEdges;
   style: FingerStyle;
-  /** Per-edge starting finger parity (for alternate corners). */
-  start?: Partial<Record<keyof PanelEdges, boolean>>;
+  /** Central fingered region length per edge (defaults to the edge length). */
+  region?: Partial<Record<keyof PanelEdges, number>>;
 }
 
 /**
  * Build a rectangular panel outline of nominal size width x height with
  * finger-jointed edges. Tabs extend OUTSIDE the nominal rectangle, slots cut in.
- * Traversed counter-clockwise.
+ * Traversed counter-clockwise. All edges start with the same finger parity so
+ * a tab edge always mates with the slot edge of the neighbouring panel.
  */
 function rectPanel(opts: RectPanelOpts): Point[] {
   const { width: w, height: h, tooth, thickness: t, kerf, edges, style } = opts;
-  const s = opts.start ?? {};
+  const r = opts.region ?? {};
   const out: Point[] = [];
 
   // bottom edge: along +x at y=0, outward = -y
-  const bottom = edgeProfile(w, tooth, t, edges.bottom, kerf, s.bottom ?? true, style);
+  const bottom = edgeProfile({
+    length: w,
+    tooth,
+    thickness: t,
+    mode: edges.bottom,
+    kerf,
+    startTab: true,
+    style,
+    region: r.bottom,
+  });
   for (const p of bottom) out.push({ x: p.x, y: -p.y });
 
   // right edge: along +y at x=w, outward = +x
-  const right = edgeProfile(h, tooth, t, edges.right, kerf, s.right ?? true, style);
+  const right = edgeProfile({
+    length: h,
+    tooth,
+    thickness: t,
+    mode: edges.right,
+    kerf,
+    startTab: true,
+    style,
+    region: r.right,
+  });
   for (let i = 1; i < right.length; i++) {
     out.push({ x: w + right[i].y, y: right[i].x });
   }
 
   // top edge: along -x at y=h, outward = +y
-  const top = edgeProfile(w, tooth, t, edges.top, kerf, s.top ?? true, style);
+  const top = edgeProfile({
+    length: w,
+    tooth,
+    thickness: t,
+    mode: edges.top,
+    kerf,
+    startTab: true,
+    style,
+    region: r.top,
+  });
   for (let i = 1; i < top.length; i++) {
     out.push({ x: w - top[i].x, y: h + top[i].y });
   }
 
   // left edge: along -y at x=0, outward = -x
-  const left = edgeProfile(h, tooth, t, edges.left, kerf, s.left ?? true, style);
+  const left = edgeProfile({
+    length: h,
+    tooth,
+    thickness: t,
+    mode: edges.left,
+    kerf,
+    startTab: true,
+    style,
+    region: r.left,
+  });
   for (let i = 1; i < left.length - 1; i++) {
     out.push({ x: -left[i].y, y: h - left[i].x });
   }
@@ -195,10 +247,9 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
 
   const panels: Panel[] = [];
 
-  const alt = cfg.alternateCorners;
-
-  // ---- Front / Back walls (in XZ plane). Own X-corners (tab) + own Z (tab). ----
-  // nominal rect = (OW - 2t) x OH ; vertical edges tab outward in X, horizontal tab in Z(down/up)
+  // ---- Front / Back walls (in XZ plane). ----
+  // nominal rect = (OW - 2t) wide x OH tall. Vertical edges = tabs (fill the
+  // corners), horizontal edges = tabs into the plates over the full width.
   const fbW = OW - 2 * t;
   const fbEdges: PanelEdges = {
     bottom: tab("tab"),
@@ -231,16 +282,17 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
     });
   }
 
-  // ---- Left / Right walls (in YZ plane). Slot in X (receive FB tabs), tab in Z. ----
+  // ---- Left / Right walls (in YZ plane). ----
+  // Full OD wide. Vertical edges = slots (receive the front/back tabs). The
+  // horizontal edges only finger the inner OD-2t span (the part over the plate),
+  // leaving a t margin at each corner so they match the smaller plate edge.
   const lrEdges: PanelEdges = {
     bottom: tab("tab"),
     top: cfg.lid ? tab("tab") : "flat",
     left: tab("slot"),
     right: tab("slot"),
   };
-  const lrStart = alt
-    ? { left: false, right: false, bottom: false, top: false }
-    : undefined;
+  const lrRegion = { bottom: OD - 2 * t, top: OD - 2 * t };
   for (const which of ["Left", "Right"] as const) {
     const raw = rectPanel({
       width: OD,
@@ -250,7 +302,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       kerf: cfg.kerf,
       edges: lrEdges,
       style: cfg.fingerStyle,
-      start: lrStart,
+      region: lrRegion,
     });
     const nz = normalize(raw);
     panels.push({
@@ -267,7 +319,9 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
     });
   }
 
-  // ---- Bottom / Top plates (in XY plane). Slot on all edges (receive wall tabs). ----
+  // ---- Bottom / Top plates (in XY plane). Slot on all edges. ----
+  // size = (OW-2t) x (OD-2t). Its X-edges mate with front/back bottom tabs,
+  // its Y-edges mate with the left/right wall fingered region (also OD-2t).
   const plateEdges: PanelEdges = {
     bottom: tab("slot"),
     top: tab("slot"),
