@@ -17,26 +17,85 @@ function featureOnIndex(i: number, flip = false) {
   return flip ? i % 2 === 0 : i % 2 !== 0;
 }
 
-function topSlots(
-  points: Point[],
-  xFrom: number,
-  xTo: number,
-  yTop: number,
-  positions: number[],
-  slotWidth: number,
-  depth: number,
-) {
-  const sorted = [...positions]
-    .filter((x) => x - slotWidth / 2 >= xFrom && x + slotWidth / 2 <= xTo)
-    .sort((a, b) => a - b);
+interface EdgeSlot {
+  start: number;
+  end: number;
+  depth: number;
+}
 
-  for (const x of sorted) {
-    pushPoint(points, x - slotWidth / 2, yTop);
-    pushPoint(points, x - slotWidth / 2, yTop + depth);
-    pushPoint(points, x + slotWidth / 2, yTop + depth);
-    pushPoint(points, x + slotWidth / 2, yTop);
+function mergeEdgeSlots(length: number, slots: EdgeSlot[]) {
+  const cleaned = slots
+    .map((slot) => ({
+      start: Math.max(0, Math.min(length, slot.start)),
+      end: Math.max(0, Math.min(length, slot.end)),
+      depth: Math.max(0, slot.depth),
+    }))
+    .filter((slot) => slot.end - slot.start > 1e-6 && slot.depth > 1e-6);
+
+  if (cleaned.length === 0) return [] as EdgeSlot[];
+
+  const boundaries = Array.from(
+    new Set([0, length, ...cleaned.flatMap((slot) => [slot.start, slot.end])].map((v) => Number(v.toFixed(6)))),
+  ).sort((a, b) => a - b);
+
+  const merged: EdgeSlot[] = [];
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const start = boundaries[i];
+    const end = boundaries[i + 1];
+    if (end - start <= 1e-6) continue;
+    const mid = (start + end) / 2;
+    const depth = cleaned.reduce((max, slot) => {
+      return mid >= slot.start - 1e-6 && mid <= slot.end + 1e-6 ? Math.max(max, slot.depth) : max;
+    }, 0);
+    if (depth <= 1e-6) continue;
+
+    const prev = merged[merged.length - 1];
+    if (prev && Math.abs(prev.end - start) <= 1e-6 && Math.abs(prev.depth - depth) <= 1e-6) {
+      prev.end = end;
+    } else {
+      merged.push({ start, end, depth });
+    }
   }
-  pushPoint(points, xTo, yTop);
+
+  return merged;
+}
+
+function fingerTopEdgeSlots(length: number, tooth: number, thickness: number, kerf: number) {
+  const { n, fw } = fingerCount(length, tooth);
+  const k = kerf / 2;
+  const slots: EdgeSlot[] = [];
+
+  for (let i = 0; i < n; i++) {
+    if (!featureOnIndex(i, false)) continue;
+    slots.push({
+      start: i * fw + k,
+      end: (i + 1) * fw - k,
+      depth: thickness,
+    });
+  }
+
+  return slots;
+}
+
+function dividerTopEdgeSlots(length: number, positions: number[], slotWidth: number, depth: number) {
+  return positions
+    .map((x) => ({
+      start: x - slotWidth / 2,
+      end: x + slotWidth / 2,
+      depth,
+    }))
+    .filter((slot) => slot.start >= 0 && slot.end <= length);
+}
+
+function traceTopEdge(points: Point[], length: number, slots: EdgeSlot[]) {
+  pushPoint(points, 0, 0);
+  for (const slot of mergeEdgeSlots(length, slots)) {
+    pushPoint(points, slot.start, 0);
+    pushPoint(points, slot.start, slot.depth);
+    pushPoint(points, slot.end, slot.depth);
+    pushPoint(points, slot.end, 0);
+  }
+  pushPoint(points, length, 0);
 }
 
 function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf: number) {
@@ -100,6 +159,7 @@ function buildFrontBackOutline(
   tooth: number,
   kerf: number,
   slotPositions: number[],
+  includeTopFingerSlots: boolean,
 ) {
   const { n: nW, fw } = fingerCount(W, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
@@ -108,8 +168,10 @@ function buildFrontBackOutline(
   const slotDepth = H / 2;
   const pts: Point[] = [];
 
-  pushPoint(pts, 0, 0);
-  topSlots(pts, 0, W, 0, slotPositions, slotWidth, slotDepth);
+  traceTopEdge(pts, W, [
+    ...dividerTopEdgeSlots(W, slotPositions, slotWidth, slotDepth),
+    ...(includeTopFingerSlots ? fingerTopEdgeSlots(W, tooth, t, kerf) : []),
+  ]);
 
   for (let i = 0; i < nH; i++) {
     const y1 = i * fh + k;
@@ -177,6 +239,7 @@ function buildSideOutline(
   tooth: number,
   kerf: number,
   slotPositions: number[],
+  includeTopFingerSlots: boolean,
 ) {
   const { n: nD, fw: fd } = fingerCount(D, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
@@ -185,8 +248,10 @@ function buildSideOutline(
   const slotDepth = H / 2;
   const pts: Point[] = [];
 
-  pushPoint(pts, 0, 0);
-  topSlots(pts, 0, D, 0, slotPositions, slotWidth, slotDepth);
+  traceTopEdge(pts, D, [
+    ...dividerTopEdgeSlots(D, slotPositions, slotWidth, slotDepth),
+    ...(includeTopFingerSlots ? fingerTopEdgeSlots(D, tooth, t, kerf) : []),
+  ]);
 
   for (let i = 0; i < nH; i++) {
     const y1 = i * fh + k;
@@ -378,22 +443,28 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   );
 
   const frontRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true)
     : buildRectOutline(W, OH);
   const backRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true)
     : buildRectOutline(W, OH);
   pushPanel("front", "Front", frontRaw, [useFinger ? OW : W, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
   pushPanel("back", "Back", backRaw, [useFinger ? OW : W, t, OH], [0, D / 2 + t / 2, OH / 2]);
 
   const sideRaw = useFinger
-    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots)
+    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, true)
     : buildRectOutline(D, OH);
   pushPanel("left", "Left", sideRaw, [t, useFinger ? OD : D, OH], [-(W / 2 + t / 2), 0, OH / 2]);
   pushPanel("right", "Right", sideRaw, [t, useFinger ? OD : D, OH], [W / 2 + t / 2, 0, OH / 2]);
 
   if (cfg.lid) {
-    pushPanel("top", "Top", buildRectOutline(OW, OD), [OW, OD, t], [0, 0, OH + t / 2]);
+    pushPanel(
+      "top",
+      "Top",
+      useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf) : buildRectOutline(OW, OD),
+      [OW, OD, t],
+      [0, 0, OH + t / 2],
+    );
   }
 
   if (cfg.dividersY && cfg.rows > 1) {
