@@ -108,7 +108,7 @@ function App() {
         <div className="flex items-baseline gap-3">
           <span className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
             <BoxIcon className="h-5 w-5 text-primary" strokeWidth={2.4} />
-            Box <span className="text-primary">Studio</span>
+            Box <span className="text-primary">Creator Pro</span>
           </span>
           <span className="label-caps text-muted-foreground">Grid Divider</span>
         </div>
