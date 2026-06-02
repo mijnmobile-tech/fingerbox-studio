@@ -255,7 +255,9 @@ export function Viewer3D({ box, view, exploded = 0 }: Props) {
         // outline-y=0 is the box TOP edge -> map to higher Z (up).
         uxm = toThree(0, 1, 0);
         uym = toThree(0, 0, -1);
-        uzm = toThree(1, 0, 0);
+        // flip the thickness axis too so the basis stays a proper rotation
+        // (det = +1); otherwise three.js drops the side panel meshes.
+        uzm = toThree(-1, 0, 0);
       } else {
         // thickness along Z (plates) — plane XY
         uxm = toThree(1, 0, 0);
