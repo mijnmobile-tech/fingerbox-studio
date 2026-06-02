@@ -495,17 +495,22 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
     );
   }
 
+  // When a lid is present, dividers must stop one thickness below the wall
+  // top so the lid can seat flush on the walls instead of resting on the
+  // dividers.
+  const divH = cfg.lid ? Math.max(1, H - t) : H;
+
   if (cfg.dividersY && cfg.rows > 1) {
     for (let r = 1; r < cfg.rows; r++) {
       const raw = useFinger
-        ? buildDividerOutline(W, H, t, cfg.cols, W / cfg.cols, true, cfg.kerf)
-        : buildRectOutline(W, H);
+        ? buildDividerOutline(W, divH, t, cfg.cols, W / cfg.cols, true, cfg.kerf)
+        : buildRectOutline(W, divH);
       pushPanel(
         `div-y-${r}`,
         `Divider Y${r}`,
         raw,
-        [useFinger ? OW : W, t, H],
-        [0, -D / 2 + (r * D) / cfg.rows, t + H / 2],
+        [useFinger ? OW : W, t, divH],
+        [0, -D / 2 + (r * D) / cfg.rows, t + divH / 2],
       );
     }
   }
@@ -513,14 +518,14 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   if (cfg.dividersX && cfg.cols > 1) {
     for (let c = 1; c < cfg.cols; c++) {
       const raw = useFinger
-        ? buildDividerOutline(D, H, t, cfg.rows, D / cfg.rows, false, cfg.kerf)
-        : buildRectOutline(D, H);
+        ? buildDividerOutline(D, divH, t, cfg.rows, D / cfg.rows, false, cfg.kerf)
+        : buildRectOutline(D, divH);
       pushPanel(
         `div-x-${c}`,
         `Divider X${c}`,
         raw,
-        [t, useFinger ? OD : D, H],
-        [-W / 2 + (c * W) / cfg.cols, 0, t + H / 2],
+        [t, useFinger ? OD : D, divH],
+        [-W / 2 + (c * W) / cfg.cols, 0, t + divH / 2],
       );
     }
   }
