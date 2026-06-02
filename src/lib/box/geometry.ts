@@ -200,7 +200,8 @@ function buildFrontBackOutline(
   slotPositions: number[],
   includeTopFingerSlots: boolean,
   style: FingerStyle = "box",
-) {
+  closeTopSlots = false,
+): { pts: Point[]; holes: Point[][] } {
   const { n: nW, fw } = fingerCount(W, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
   const k = kerf / 2;
@@ -209,7 +210,7 @@ function buildFrontBackOutline(
   const pts: Point[] = [];
 
   traceTopEdge(pts, W, [
-    ...dividerTopEdgeSlots(W, slotPositions, slotWidth, slotDepth),
+    ...(closeTopSlots ? [] : dividerTopEdgeSlots(W, slotPositions, slotWidth, slotDepth)),
     ...(includeTopFingerSlots ? fingerTopEdgeSlots(W, tooth, t, kerf) : []),
   ]);
 
