@@ -263,12 +263,16 @@ function buildFrontBackOutline(
 
   const holes: Point[][] = [];
   if (closeTopSlots) {
+    // With a lid the dividers are shortened to (H - t) and their interlocking
+    // tab only reaches (H - t)/2 deep, so the wall slot must match that depth
+    // exactly — otherwise the slot extends past the tab and shows a hole.
+    const closedSlotDepth = (H - t) / 2;
     for (const x of slotPositions) {
       const x1 = x - slotWidth / 2;
       const x2 = x + slotWidth / 2;
       if (x1 < 0 || x2 > W) continue;
       const y1 = t;
-      const y2 = t + slotDepth;
+      const y2 = t + closedSlotDepth;
       holes.push([
         { x: x1, y: y1 },
         { x: x2, y: y1 },
@@ -335,12 +339,14 @@ function buildSideOutline(
 
   const holes: Point[][] = [];
   if (closeTopSlots) {
+    // Match the shortened divider tab depth so the slot doesn't show a hole.
+    const closedSlotDepth = (H - t) / 2;
     for (const x of slotPositions) {
       const x1 = x - slotWidth / 2;
       const x2 = x + slotWidth / 2;
       if (x1 < 0 || x2 > D) continue;
       const y1 = t;
-      const y2 = t + slotDepth;
+      const y2 = t + closedSlotDepth;
       holes.push([
         { x: x1, y: y1 },
         { x: x2, y: y1 },
