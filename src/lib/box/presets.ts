@@ -125,6 +125,7 @@ export const presets: Preset[] = [
       cols: 3,
       rows: 3,
       lid: true,
+      topFingers: true,
       tooth: 7,
     },
   },
