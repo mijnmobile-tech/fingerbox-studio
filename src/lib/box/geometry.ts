@@ -443,22 +443,28 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   );
 
   const frontRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true)
     : buildRectOutline(W, OH);
   const backRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true)
     : buildRectOutline(W, OH);
   pushPanel("front", "Front", frontRaw, [useFinger ? OW : W, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
   pushPanel("back", "Back", backRaw, [useFinger ? OW : W, t, OH], [0, D / 2 + t / 2, OH / 2]);
 
   const sideRaw = useFinger
-    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots)
+    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, true)
     : buildRectOutline(D, OH);
   pushPanel("left", "Left", sideRaw, [t, useFinger ? OD : D, OH], [-(W / 2 + t / 2), 0, OH / 2]);
   pushPanel("right", "Right", sideRaw, [t, useFinger ? OD : D, OH], [W / 2 + t / 2, 0, OH / 2]);
 
   if (cfg.lid) {
-    pushPanel("top", "Top", buildRectOutline(OW, OD), [OW, OD, t], [0, 0, OH + t / 2]);
+    pushPanel(
+      "top",
+      "Top",
+      useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf) : buildRectOutline(OW, OD),
+      [OW, OD, t],
+      [0, 0, OH + t / 2],
+    );
   }
 
   if (cfg.dividersY && cfg.rows > 1) {
