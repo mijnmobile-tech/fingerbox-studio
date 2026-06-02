@@ -50,6 +50,33 @@ function App() {
   const set = <K extends keyof BoxConfig>(k: K, v: BoxConfig[K]) =>
     setCfg((c) => ({ ...c, [k]: v }));
 
+  const setMaterial = (id: MaterialId) =>
+    setCfg((c) => {
+      const m = getMaterial(id);
+      const thickness = m.defaultThickness;
+      return {
+        ...c,
+        material: id,
+        thickness,
+        kerf: c.autoKerf ? advisedKerf(id, thickness) : c.kerf,
+      };
+    });
+
+  const setThickness = (thickness: number) =>
+    setCfg((c) => ({
+      ...c,
+      thickness,
+      kerf: c.autoKerf ? advisedKerf(c.material, thickness) : c.kerf,
+    }));
+
+  const setAutoKerf = (on: boolean) =>
+    setCfg((c) => ({
+      ...c,
+      autoKerf: on,
+      kerf: on ? advisedKerf(c.material, c.thickness) : c.kerf,
+    }));
+
+
   const u = units === "mm" ? "mm" : "in";
   const dim = (v: number) => `${num(v, units)} ${u}`;
 
