@@ -142,7 +142,14 @@ function traceTopEdge(points: Point[], length: number, slots: EdgeSlot[]) {
   pushPoint(points, length, 0);
 }
 
-function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf: number) {
+function buildBottomOutline(
+  W: number,
+  D: number,
+  t: number,
+  tooth: number,
+  kerf: number,
+  style: FingerStyle = "box",
+) {
   const { n: nW, fw } = fingerCount(W, tooth);
   const { n: nD, fw: fd } = fingerCount(D, tooth);
   const k = kerf / 2;
@@ -153,10 +160,7 @@ function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf
     const x1 = i * fw + k;
     const x2 = (i + 1) * fw - k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, x1, 0);
-      pushPoint(pts, x1, -t);
-      pushPoint(pts, x2, -t);
-      pushPoint(pts, x2, 0);
+      emitTab(pts, x1, 0, x2, 0, 0, -t, style);
     }
     pushPoint(pts, (i + 1) * fw, 0);
   }
@@ -164,10 +168,7 @@ function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf
     const y1 = i * fd + k;
     const y2 = (i + 1) * fd - k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, W, y1);
-      pushPoint(pts, W + t, y1);
-      pushPoint(pts, W + t, y2);
-      pushPoint(pts, W, y2);
+      emitTab(pts, W, y1, W, y2, t, 0, style);
     }
     pushPoint(pts, W, (i + 1) * fd);
   }
@@ -175,10 +176,7 @@ function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf
     const x1 = (i + 1) * fw - k;
     const x2 = i * fw + k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, x1, D);
-      pushPoint(pts, x1, D + t);
-      pushPoint(pts, x2, D + t);
-      pushPoint(pts, x2, D);
+      emitTab(pts, x1, D, x2, D, 0, t, style);
     }
     pushPoint(pts, i * fw, D);
   }
@@ -186,10 +184,7 @@ function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf
     const y1 = (i + 1) * fd - k;
     const y2 = i * fd + k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, 0, y1);
-      pushPoint(pts, -t, y1);
-      pushPoint(pts, -t, y2);
-      pushPoint(pts, 0, y2);
+      emitTab(pts, 0, y1, 0, y2, -t, 0, style);
     }
     pushPoint(pts, 0, i * fd);
   }
