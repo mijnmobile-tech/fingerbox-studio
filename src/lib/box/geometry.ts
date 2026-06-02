@@ -226,10 +226,7 @@ function buildFrontBackOutline(
         pushPoint(pts, W + t, H);
         pushPoint(pts, W + t, H + t);
       } else {
-        pushPoint(pts, W, y1);
-        pushPoint(pts, W + t, y1);
-        pushPoint(pts, W + t, y2);
-        pushPoint(pts, W, y2);
+        emitTab(pts, W, y1, W, y2, t, 0, style);
       }
     }
     if (!(featureOnIndex(i, true) && i === nH - 1)) {
