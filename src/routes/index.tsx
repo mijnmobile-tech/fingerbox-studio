@@ -204,8 +204,29 @@ function App() {
                 <p className="text-[0.7rem] leading-snug text-muted-foreground">
                   {getMaterial(cfg.material).note}
                 </p>
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Laser cutter</FieldLabel>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {lasers.map((l) => (
+                    <button
+                      key={l.id}
+                      onClick={() => setLaser(l.id)}
+                      className={`rounded-sm border px-2 py-1.5 text-xs font-medium transition-colors ${
+                        cfg.laser === l.id
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border bg-field text-muted-foreground hover:border-primary"
+                      }`}
+                    >
+                      {l.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[0.7rem] leading-snug text-muted-foreground">
+                  {getLaser(cfg.laser).note}
+                </p>
                 <Toggle
-                  label={`Auto kerf (advised ${advisedKerf(cfg.material, cfg.thickness).toFixed(2)} mm)`}
+                  label={`Auto kerf (advised ${advisedKerf(cfg.material, cfg.thickness, cfg.laser).toFixed(2)} mm)`}
                   checked={cfg.autoKerf}
                   onChange={setAutoKerf}
                 />
