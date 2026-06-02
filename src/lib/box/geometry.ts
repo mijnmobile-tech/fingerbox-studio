@@ -200,7 +200,8 @@ function buildFrontBackOutline(
   slotPositions: number[],
   includeTopFingerSlots: boolean,
   style: FingerStyle = "box",
-) {
+  closeTopSlots = false,
+): { pts: Point[]; holes: Point[][] } {
   const { n: nW, fw } = fingerCount(W, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
   const k = kerf / 2;
@@ -209,7 +210,7 @@ function buildFrontBackOutline(
   const pts: Point[] = [];
 
   traceTopEdge(pts, W, [
-    ...dividerTopEdgeSlots(W, slotPositions, slotWidth, slotDepth),
+    ...(closeTopSlots ? [] : dividerTopEdgeSlots(W, slotPositions, slotWidth, slotDepth)),
     ...(includeTopFingerSlots ? fingerTopEdgeSlots(W, tooth, t, kerf) : []),
   ]);
 
@@ -260,7 +261,24 @@ function buildFrontBackOutline(
     pushPoint(pts, 0, i * fh);
   }
 
-  return pts;
+  const holes: Point[][] = [];
+  if (closeTopSlots) {
+    for (const x of slotPositions) {
+      const x1 = x - slotWidth / 2;
+      const x2 = x + slotWidth / 2;
+      if (x1 < 0 || x2 > W) continue;
+      const y1 = t;
+      const y2 = t + slotDepth;
+      holes.push([
+        { x: x1, y: y1 },
+        { x: x2, y: y1 },
+        { x: x2, y: y2 },
+        { x: x1, y: y2 },
+      ]);
+    }
+  }
+
+  return { pts, holes };
 }
 
 function buildSideOutline(
@@ -272,7 +290,8 @@ function buildSideOutline(
   slotPositions: number[],
   includeTopFingerSlots: boolean,
   style: FingerStyle = "box",
-) {
+  closeTopSlots = false,
+): { pts: Point[]; holes: Point[][] } {
   const { n: nD, fw: fd } = fingerCount(D, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
   const k = kerf / 2;
@@ -281,7 +300,7 @@ function buildSideOutline(
   const pts: Point[] = [];
 
   traceTopEdge(pts, D, [
-    ...dividerTopEdgeSlots(D, slotPositions, slotWidth, slotDepth),
+    ...(closeTopSlots ? [] : dividerTopEdgeSlots(D, slotPositions, slotWidth, slotDepth)),
     ...(includeTopFingerSlots ? fingerTopEdgeSlots(D, tooth, t, kerf) : []),
   ]);
 
@@ -314,7 +333,24 @@ function buildSideOutline(
     pushPoint(pts, 0, i * fh);
   }
 
-  return pts;
+  const holes: Point[][] = [];
+  if (closeTopSlots) {
+    for (const x of slotPositions) {
+      const x1 = x - slotWidth / 2;
+      const x2 = x + slotWidth / 2;
+      if (x1 < 0 || x2 > D) continue;
+      const y1 = t;
+      const y2 = t + slotDepth;
+      holes.push([
+        { x: x1, y: y1 },
+        { x: x2, y: y1 },
+        { x: x2, y: y2 },
+        { x: x1, y: y2 },
+      ]);
+    }
+  }
+
+  return { pts, holes };
 }
 
 function buildDividerOutline(
@@ -388,14 +424,6 @@ function bounds(pts: Point[]) {
   return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
 }
 
-function normalize(pts: Point[]): { pts: Point[]; w: number; h: number } {
-  const b = bounds(pts);
-  return {
-    pts: pts.map((p) => ({ x: p.x - b.minX, y: p.y - b.minY })),
-    w: b.w,
-    h: b.h,
-  };
-}
 
 /** Resolve interior dimensions from the chosen measurement mode. */
 function resolveInterior(cfg: BoxConfig) {
@@ -434,18 +462,21 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   const pushPanel = (
     id: string,
     label: string,
-    raw: Point[],
+    raw: Point[] | { pts: Point[]; holes: Point[][] },
     size: [number, number, number],
     pos: [number, number, number],
   ) => {
-    const nz = normalize(raw);
+    const outlineRaw = Array.isArray(raw) ? raw : raw.pts;
+    const holesRaw = Array.isArray(raw) ? [] : raw.holes;
+    const b = bounds(outlineRaw);
+    const offset = (p: Point) => ({ x: p.x - b.minX, y: p.y - b.minY });
     panels.push({
       id,
       label,
-      outline: nz.pts,
-      holes: [],
-      width: nz.w,
-      height: nz.h,
+      outline: outlineRaw.map(offset),
+      holes: holesRaw.map((h) => h.map(offset)),
+      width: b.w,
+      height: b.h,
       placement: { size, pos },
     });
   };
@@ -459,6 +490,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
 
   const fs = cfg.fingerStyle;
   const topFingers = useFinger && cfg.topFingers;
+  const closeTop = useFinger && cfg.lid;
 
   pushPanel(
     "bottom",
@@ -469,16 +501,16 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   );
 
   const frontRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, topFingers, fs)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, topFingers, fs, closeTop)
     : buildRectOutline(OW, OH);
   const backRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, topFingers, fs)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, topFingers, fs, closeTop)
     : buildRectOutline(OW, OH);
   pushPanel("front", "Front", frontRaw, [OW, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
   pushPanel("back", "Back", backRaw, [OW, t, OH], [0, D / 2 + t / 2, OH / 2]);
 
   const sideRaw = useFinger
-    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, topFingers, fs)
+    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, topFingers, fs, closeTop)
     : buildRectOutline(D, OH);
   pushPanel("left", "Left", sideRaw, [t, useFinger ? OD : D, OH], [-(W / 2 + t / 2), 0, OH / 2]);
   pushPanel("right", "Right", sideRaw, [t, useFinger ? OD : D, OH], [W / 2 + t / 2, 0, OH / 2]);
