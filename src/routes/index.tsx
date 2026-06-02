@@ -6,7 +6,7 @@ import { buildBox } from "@/lib/box/geometry";
 import { buildSvg, downloadSvg } from "@/lib/box/svg";
 import { defaultConfig, presets } from "@/lib/box/presets";
 import type { BoxConfig, LaserId, MaterialId, MeasureMode, Units } from "@/lib/box/types";
-import { materials, lasers, getMaterial, advisedKerf } from "@/lib/box/materials";
+import { materials, lasers, getMaterial, getLaser, advisedKerf } from "@/lib/box/materials";
 import { Viewer3D, type ViewPreset } from "@/components/box/Viewer3D";
 import {
   FieldLabel,
