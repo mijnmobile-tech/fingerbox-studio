@@ -260,7 +260,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   for (const which of ["Front", "Back"] as const) {
     const raw = rectPanel({
       width: fbW,
-      height: OH,
+      height: H,
       tooth: cfg.tooth,
       thickness: t,
       kerf: cfg.kerf,
@@ -276,7 +276,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       width: nz.w,
       height: nz.h,
       placement: {
-        size: [OW, t, OH],
+        size: [nz.w, t, nz.h],
         pos: [0, which === "Front" ? -OD / 2 + t / 2 : OD / 2 - t / 2, 0],
       },
     });
@@ -296,7 +296,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   for (const which of ["Left", "Right"] as const) {
     const raw = rectPanel({
       width: OD,
-      height: OH,
+      height: H,
       tooth: cfg.tooth,
       thickness: t,
       kerf: cfg.kerf,
@@ -313,7 +313,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       width: nz.w,
       height: nz.h,
       placement: {
-        size: [t, OD, OH],
+        size: [t, nz.w, nz.h],
         pos: [which === "Left" ? -OW / 2 + t / 2 : OW / 2 - t / 2, 0, 0],
       },
     });
@@ -366,7 +366,7 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
       width: nz.w,
       height: nz.h,
       placement: {
-        size: [OW, OD, t],
+        size: [nz.w, nz.h, t],
         pos: [0, 0, zPos],
       },
     });

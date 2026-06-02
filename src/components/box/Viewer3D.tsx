@@ -23,6 +23,27 @@ function thicknessAxis(size: [number, number, number]) {
   return idx;
 }
 
+function explodeDirection(panel: Panel) {
+  const { id, placement } = panel;
+  if (id === "front") return [0, -1, 0] as const;
+  if (id === "back") return [0, 1, 0] as const;
+  if (id === "left") return [-1, 0, 0] as const;
+  if (id === "right") return [1, 0, 0] as const;
+  if (id === "bottom") return [0, 0, -1] as const;
+  if (id === "top") return [0, 0, 1] as const;
+  if (id.startsWith("div-x-")) {
+    const sign = Math.sign(placement.pos[0]) || 1;
+    return [sign, 0, 0] as const;
+  }
+  if (id.startsWith("div-y-")) {
+    const sign = Math.sign(placement.pos[1]) || 1;
+    return [0, sign, 0] as const;
+  }
+  const ti = thicknessAxis(placement.size);
+  const sign = Math.sign(placement.pos[ti]) || 1;
+  return ti === 0 ? ([sign, 0, 0] as const) : ti === 1 ? ([0, sign, 0] as const) : ([0, 0, sign] as const);
+}
+
 /** Build an extruded mesh geometry from a panel's outline + holes. */
 function panelGeometry(panel: Panel, t: number) {
   const shape = new THREE.Shape();
@@ -213,7 +234,7 @@ export function Viewer3D({ box, view, exploded = 0 }: Props) {
       box.exterior.height,
       box.exterior.depth,
     );
-    const explodeAmt = exploded * maxDim * 0.55;
+    const explodeAmt = exploded * maxDim * 0.38;
 
     box.panels.forEach((p, i) => {
       const t = Math.min(...p.placement.size);
@@ -247,8 +268,10 @@ export function Viewer3D({ box, view, exploded = 0 }: Props) {
       // exploded offset along the thickness axis, away from center
       const pos: [number, number, number] = [...p.placement.pos];
       if (explodeAmt > 0) {
-        const sign = Math.sign(pos[ti]) || (i % 2 === 0 ? 1 : -1);
-        pos[ti] += sign * explodeAmt;
+        const dir = explodeDirection(p);
+        pos[0] += dir[0] * explodeAmt;
+        pos[1] += dir[1] * explodeAmt;
+        pos[2] += dir[2] * explodeAmt;
       }
       mesh.position.copy(toThree(pos[0], pos[1], pos[2]));
       group.add(mesh);
