@@ -457,25 +457,27 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
     ? Array.from({ length: cfg.rows - 1 }, (_, i) => ((i + 1) * D) / cfg.rows)
     : [];
 
+  const fs = cfg.fingerStyle;
+
   pushPanel(
     "bottom",
     "Bottom",
-    useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf) : buildRectOutline(W, D),
+    useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf, fs) : buildRectOutline(W, D),
     [useFinger ? OW : W, useFinger ? OD : D, t],
     [0, 0, t / 2],
   );
 
   const frontRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true, fs)
     : buildRectOutline(W, OH);
   const backRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true, fs)
     : buildRectOutline(W, OH);
   pushPanel("front", "Front", frontRaw, [useFinger ? OW : W, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
   pushPanel("back", "Back", backRaw, [useFinger ? OW : W, t, OH], [0, D / 2 + t / 2, OH / 2]);
 
   const sideRaw = useFinger
-    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, true)
+    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, true, fs)
     : buildRectOutline(D, OH);
   pushPanel("left", "Left", sideRaw, [t, useFinger ? OD : D, OH], [-(W / 2 + t / 2), 0, OH / 2]);
   pushPanel("right", "Right", sideRaw, [t, useFinger ? OD : D, OH], [W / 2 + t / 2, 0, OH / 2]);
@@ -484,9 +486,9 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
     pushPanel(
       "top",
       "Top",
-      useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf) : buildRectOutline(OW, OD),
+      useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf, "box") : buildRectOutline(OW, OD),
       [OW, OD, t],
-      [0, 0, OH + t / 2],
+      [0, 0, OH - t / 2],
     );
   }
 
