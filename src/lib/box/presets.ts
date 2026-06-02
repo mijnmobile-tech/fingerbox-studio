@@ -2,6 +2,7 @@ import type { BoxConfig } from "./types";
 
 export const defaultConfig: BoxConfig = {
   material: "plywood",
+  laser: "xtool-20w",
   autoKerf: true,
   measure: "interior",
   length: 150,
