@@ -254,10 +254,7 @@ function buildFrontBackOutline(
         pushPoint(pts, -t, y2);
         pushPoint(pts, 0, y2);
       } else {
-        pushPoint(pts, 0, y1);
-        pushPoint(pts, -t, y1);
-        pushPoint(pts, -t, y2);
-        pushPoint(pts, 0, y2);
+        emitTab(pts, 0, y1, 0, y2, -t, 0, style);
       }
     }
     pushPoint(pts, 0, i * fh);
