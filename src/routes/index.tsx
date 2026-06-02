@@ -5,7 +5,8 @@ import { Download, Zap, Box as BoxIcon } from "lucide-react";
 import { buildBox } from "@/lib/box/geometry";
 import { buildSvg, downloadSvg } from "@/lib/box/svg";
 import { defaultConfig, presets } from "@/lib/box/presets";
-import type { BoxConfig, MeasureMode, Units } from "@/lib/box/types";
+import type { BoxConfig, MaterialId, MeasureMode, Units } from "@/lib/box/types";
+import { materials, getMaterial, advisedKerf } from "@/lib/box/materials";
 import { Viewer3D, type ViewPreset } from "@/components/box/Viewer3D";
 import {
   FieldLabel,
@@ -48,6 +49,33 @@ function App() {
   const box = useMemo(() => buildBox(cfg), [cfg]);
   const set = <K extends keyof BoxConfig>(k: K, v: BoxConfig[K]) =>
     setCfg((c) => ({ ...c, [k]: v }));
+
+  const setMaterial = (id: MaterialId) =>
+    setCfg((c) => {
+      const m = getMaterial(id);
+      const thickness = m.defaultThickness;
+      return {
+        ...c,
+        material: id,
+        thickness,
+        kerf: c.autoKerf ? advisedKerf(id, thickness) : c.kerf,
+      };
+    });
+
+  const setThickness = (thickness: number) =>
+    setCfg((c) => ({
+      ...c,
+      thickness,
+      kerf: c.autoKerf ? advisedKerf(c.material, thickness) : c.kerf,
+    }));
+
+  const setAutoKerf = (on: boolean) =>
+    setCfg((c) => ({
+      ...c,
+      autoKerf: on,
+      kerf: on ? advisedKerf(c.material, c.thickness) : c.kerf,
+    }));
+
 
   const u = units === "mm" ? "mm" : "in";
   const dim = (v: number) => `${num(v, units)} ${u}`;
@@ -147,7 +175,33 @@ function App() {
                 <FieldLabel value={`${cfg.thickness.toFixed(1)} mm`}>
                   Material thickness
                 </FieldLabel>
-                <Slider value={cfg.thickness} onChange={(v) => set("thickness", v)} min={1} max={12} step={0.5} />
+                <Slider value={cfg.thickness} onChange={setThickness} min={1} max={12} step={0.5} />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Material</FieldLabel>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {materials.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setMaterial(m.id)}
+                      className={`rounded-sm border px-2 py-1.5 text-xs font-medium transition-colors ${
+                        cfg.material === m.id
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border bg-field text-muted-foreground hover:border-primary"
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[0.7rem] leading-snug text-muted-foreground">
+                  {getMaterial(cfg.material).note}
+                </p>
+                <Toggle
+                  label={`Auto kerf (advised ${advisedKerf(cfg.material, cfg.thickness).toFixed(2)} mm)`}
+                  checked={cfg.autoKerf}
+                  onChange={setAutoKerf}
+                />
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-sm border border-border bg-field/60 p-3">
                 <Readout label="Ext. length" value={dim(box.exterior.length)} />
@@ -201,8 +255,12 @@ function App() {
                 <Slider value={cfg.tooth} onChange={(v) => set("tooth", v)} min={4} max={40} step={0.5} />
               </div>
               <div className="space-y-1.5">
-                <FieldLabel value={`${cfg.kerf.toFixed(2)} mm`}>Kerf / tolerance</FieldLabel>
-                <Slider value={cfg.kerf} onChange={(v) => set("kerf", v)} min={0} max={0.5} step={0.01} />
+                <FieldLabel value={`${cfg.kerf.toFixed(2)} mm${cfg.autoKerf ? " · auto" : ""}`}>
+                  Kerf / tolerance
+                </FieldLabel>
+                <div className={cfg.autoKerf ? "pointer-events-none opacity-50" : ""}>
+                  <Slider value={cfg.kerf} onChange={(v) => set("kerf", v)} min={0} max={0.5} step={0.01} />
+                </div>
               </div>
               <Toggle
                 label="Alternate corner teeth"

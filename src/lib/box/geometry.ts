@@ -1,4 +1,4 @@
-import type { BoxConfig, BuiltBox, Panel, Point } from "./types";
+import type { BoxConfig, BuiltBox, FingerStyle, Panel, Point } from "./types";
 
 function fingerCount(length: number, tooth: number): { n: number; fw: number } {
   let n = Math.max(1, Math.round(length / Math.max(tooth, 0.5)));
@@ -15,6 +15,50 @@ function pushPoint(points: Point[], x: number, y: number) {
 
 function featureOnIndex(i: number, flip = false) {
   return flip ? i % 2 === 0 : i % 2 !== 0;
+}
+
+/**
+ * Emit one tooth (tab) along an edge. The tooth baseline runs from
+ * (sx,sy) to (ex,ey); (ox,oy) is the outward protrusion vector (= depth).
+ * The shape of the protruding tip is controlled by `style`:
+ *  - box: square tab (default)
+ *  - chamfer: 45° cut on the two outer corners
+ *  - dovetail: trapezoidal tab, wider at the tip
+ */
+function emitTab(
+  pts: Point[],
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number,
+  ox: number,
+  oy: number,
+  style: FingerStyle = "box",
+) {
+  const len = Math.hypot(ex - sx, ey - sy) || 1;
+  const ux = (ex - sx) / len;
+  const uy = (ey - sy) / len;
+
+  pushPoint(pts, sx, sy);
+
+  if (style === "dovetail") {
+    const d = Math.min(len * 0.18, len / 3);
+    pushPoint(pts, sx + ox - ux * d, sy + oy - uy * d);
+    pushPoint(pts, ex + ox + ux * d, ey + oy + uy * d);
+  } else if (style === "chamfer") {
+    const depth = Math.hypot(ox, oy) || 1;
+    const c = Math.min(len * 0.28, depth * 0.7);
+    const fx = c / depth;
+    pushPoint(pts, sx + ox * (1 - fx), sy + oy * (1 - fx));
+    pushPoint(pts, sx + ox + ux * c, sy + oy + uy * c);
+    pushPoint(pts, ex + ox - ux * c, ey + oy - uy * c);
+    pushPoint(pts, ex + ox * (1 - fx), ey + oy * (1 - fx));
+  } else {
+    pushPoint(pts, sx + ox, sy + oy);
+    pushPoint(pts, ex + ox, ey + oy);
+  }
+
+  pushPoint(pts, ex, ey);
 }
 
 interface EdgeSlot {
@@ -98,7 +142,14 @@ function traceTopEdge(points: Point[], length: number, slots: EdgeSlot[]) {
   pushPoint(points, length, 0);
 }
 
-function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf: number) {
+function buildBottomOutline(
+  W: number,
+  D: number,
+  t: number,
+  tooth: number,
+  kerf: number,
+  style: FingerStyle = "box",
+) {
   const { n: nW, fw } = fingerCount(W, tooth);
   const { n: nD, fw: fd } = fingerCount(D, tooth);
   const k = kerf / 2;
@@ -109,10 +160,7 @@ function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf
     const x1 = i * fw + k;
     const x2 = (i + 1) * fw - k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, x1, 0);
-      pushPoint(pts, x1, -t);
-      pushPoint(pts, x2, -t);
-      pushPoint(pts, x2, 0);
+      emitTab(pts, x1, 0, x2, 0, 0, -t, style);
     }
     pushPoint(pts, (i + 1) * fw, 0);
   }
@@ -120,10 +168,7 @@ function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf
     const y1 = i * fd + k;
     const y2 = (i + 1) * fd - k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, W, y1);
-      pushPoint(pts, W + t, y1);
-      pushPoint(pts, W + t, y2);
-      pushPoint(pts, W, y2);
+      emitTab(pts, W, y1, W, y2, t, 0, style);
     }
     pushPoint(pts, W, (i + 1) * fd);
   }
@@ -131,10 +176,7 @@ function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf
     const x1 = (i + 1) * fw - k;
     const x2 = i * fw + k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, x1, D);
-      pushPoint(pts, x1, D + t);
-      pushPoint(pts, x2, D + t);
-      pushPoint(pts, x2, D);
+      emitTab(pts, x1, D, x2, D, 0, t, style);
     }
     pushPoint(pts, i * fw, D);
   }
@@ -142,10 +184,7 @@ function buildBottomOutline(W: number, D: number, t: number, tooth: number, kerf
     const y1 = (i + 1) * fd - k;
     const y2 = i * fd + k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, 0, y1);
-      pushPoint(pts, -t, y1);
-      pushPoint(pts, -t, y2);
-      pushPoint(pts, 0, y2);
+      emitTab(pts, 0, y1, 0, y2, -t, 0, style);
     }
     pushPoint(pts, 0, i * fd);
   }
@@ -160,6 +199,7 @@ function buildFrontBackOutline(
   kerf: number,
   slotPositions: number[],
   includeTopFingerSlots: boolean,
+  style: FingerStyle = "box",
 ) {
   const { n: nW, fw } = fingerCount(W, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
@@ -186,10 +226,7 @@ function buildFrontBackOutline(
         pushPoint(pts, W + t, H);
         pushPoint(pts, W + t, H + t);
       } else {
-        pushPoint(pts, W, y1);
-        pushPoint(pts, W + t, y1);
-        pushPoint(pts, W + t, y2);
-        pushPoint(pts, W, y2);
+        emitTab(pts, W, y1, W, y2, t, 0, style);
       }
     }
     if (!(featureOnIndex(i, true) && i === nH - 1)) {
@@ -201,10 +238,7 @@ function buildFrontBackOutline(
     const x1 = (i + 1) * fw - k;
     const x2 = i * fw + k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, x1, H + t);
-      pushPoint(pts, x1, H);
-      pushPoint(pts, x2, H);
-      pushPoint(pts, x2, H + t);
+      emitTab(pts, x1, H + t, x2, H + t, 0, -t, style);
     }
     pushPoint(pts, i * fw, H + t);
   }
@@ -220,10 +254,7 @@ function buildFrontBackOutline(
         pushPoint(pts, -t, y2);
         pushPoint(pts, 0, y2);
       } else {
-        pushPoint(pts, 0, y1);
-        pushPoint(pts, -t, y1);
-        pushPoint(pts, -t, y2);
-        pushPoint(pts, 0, y2);
+        emitTab(pts, 0, y1, 0, y2, -t, 0, style);
       }
     }
     pushPoint(pts, 0, i * fh);
@@ -240,6 +271,7 @@ function buildSideOutline(
   kerf: number,
   slotPositions: number[],
   includeTopFingerSlots: boolean,
+  style: FingerStyle = "box",
 ) {
   const { n: nD, fw: fd } = fingerCount(D, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
@@ -257,10 +289,7 @@ function buildSideOutline(
     const y1 = i * fh + k;
     const y2 = (i + 1) * fh - k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, D, y1);
-      pushPoint(pts, D + t, y1);
-      pushPoint(pts, D + t, y2);
-      pushPoint(pts, D, y2);
+      emitTab(pts, D, y1, D, y2, t, 0, style);
     }
     pushPoint(pts, D, (i + 1) * fh);
   }
@@ -270,10 +299,7 @@ function buildSideOutline(
     const x1 = (i + 1) * fd - k;
     const x2 = i * fd + k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, x1, H + t);
-      pushPoint(pts, x1, H);
-      pushPoint(pts, x2, H);
-      pushPoint(pts, x2, H + t);
+      emitTab(pts, x1, H + t, x2, H + t, 0, -t, style);
     }
     pushPoint(pts, i * fd, H + t);
   }
@@ -283,10 +309,7 @@ function buildSideOutline(
     const y1 = (i + 1) * fh - k;
     const y2 = i * fh + k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, 0, y1);
-      pushPoint(pts, -t, y1);
-      pushPoint(pts, -t, y2);
-      pushPoint(pts, 0, y2);
+      emitTab(pts, 0, y1, 0, y2, -t, 0, style);
     }
     pushPoint(pts, 0, i * fh);
   }
@@ -434,25 +457,27 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
     ? Array.from({ length: cfg.rows - 1 }, (_, i) => ((i + 1) * D) / cfg.rows)
     : [];
 
+  const fs = cfg.fingerStyle;
+
   pushPanel(
     "bottom",
     "Bottom",
-    useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf) : buildRectOutline(W, D),
+    useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf, fs) : buildRectOutline(W, D),
     [useFinger ? OW : W, useFinger ? OD : D, t],
     [0, 0, t / 2],
   );
 
   const frontRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true, fs)
     : buildRectOutline(W, OH);
   const backRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true)
+    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, true, fs)
     : buildRectOutline(W, OH);
   pushPanel("front", "Front", frontRaw, [useFinger ? OW : W, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
   pushPanel("back", "Back", backRaw, [useFinger ? OW : W, t, OH], [0, D / 2 + t / 2, OH / 2]);
 
   const sideRaw = useFinger
-    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, true)
+    ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, true, fs)
     : buildRectOutline(D, OH);
   pushPanel("left", "Left", sideRaw, [t, useFinger ? OD : D, OH], [-(W / 2 + t / 2), 0, OH / 2]);
   pushPanel("right", "Right", sideRaw, [t, useFinger ? OD : D, OH], [W / 2 + t / 2, 0, OH / 2]);
@@ -461,9 +486,9 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
     pushPanel(
       "top",
       "Top",
-      useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf) : buildRectOutline(OW, OD),
+      useFinger ? buildBottomOutline(W, D, t, cfg.tooth, cfg.kerf, "box") : buildRectOutline(OW, OD),
       [OW, OD, t],
-      [0, 0, OH + t / 2],
+      [0, 0, OH - t / 2],
     );
   }
 
