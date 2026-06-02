@@ -495,11 +495,10 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
     );
   }
 
-  // When a lid is present, leave actual clearance below the underside of the
-  // lid so the dividers do not touch or visually line up with the top lid
-  // seating line in the 3D preview.
-  const lidDividerClearance = cfg.lid ? t : 0;
-  const divH = cfg.lid ? Math.max(1, H - t - lidDividerClearance) : H;
+  // When a lid is present, dividers stop exactly at the underside of the lid
+  // (one material thickness below the wall top) so they seat flush against the
+  // lid without leaving a visible gap.
+  const divH = cfg.lid ? Math.max(1, H - t) : H;
 
   if (cfg.dividersY && cfg.rows > 1) {
     for (let r = 1; r < cfg.rows; r++) {
