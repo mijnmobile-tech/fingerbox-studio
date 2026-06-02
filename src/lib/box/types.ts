@@ -13,10 +13,14 @@ export type MaterialId =
   | "hardboard"
   | "cardboard";
 
+export type LaserId = "xtool-10w" | "xtool-20w" | "xtool-40w";
+
 export interface BoxConfig {
   /** Sheet material */
   material: MaterialId;
-  /** Auto-calculate kerf/tolerance from material */
+  /** Laser cutter model */
+  laser: LaserId;
+  /** Auto-calculate kerf/tolerance from material + laser */
   autoKerf: boolean;
   /** Measurement reference mode */
   measure: MeasureMode;
