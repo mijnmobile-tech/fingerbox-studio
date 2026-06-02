@@ -175,7 +175,33 @@ function App() {
                 <FieldLabel value={`${cfg.thickness.toFixed(1)} mm`}>
                   Material thickness
                 </FieldLabel>
-                <Slider value={cfg.thickness} onChange={(v) => set("thickness", v)} min={1} max={12} step={0.5} />
+                <Slider value={cfg.thickness} onChange={setThickness} min={1} max={12} step={0.5} />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Material</FieldLabel>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {materials.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setMaterial(m.id)}
+                      className={`rounded-sm border px-2 py-1.5 text-xs font-medium transition-colors ${
+                        cfg.material === m.id
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border bg-field text-muted-foreground hover:border-primary"
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[0.7rem] leading-snug text-muted-foreground">
+                  {getMaterial(cfg.material).note}
+                </p>
+                <Toggle
+                  label={`Auto kerf (advised ${advisedKerf(cfg.material, cfg.thickness).toFixed(2)} mm)`}
+                  checked={cfg.autoKerf}
+                  onChange={setAutoKerf}
+                />
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-sm border border-border bg-field/60 p-3">
                 <Readout label="Ext. length" value={dim(box.exterior.length)} />
