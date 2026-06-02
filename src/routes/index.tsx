@@ -267,6 +267,13 @@ function App() {
                 checked={cfg.alternateCorners}
                 onChange={(v) => set("alternateCorners", v)}
               />
+              {cfg.joint === "finger" && (
+                <Toggle
+                  label="Top edge finger joints"
+                  checked={cfg.topFingers}
+                  onChange={(v) => set("topFingers", v)}
+                />
+              )}
             </Section>
 
             <Section title="Lid" defaultOpen={false}>
