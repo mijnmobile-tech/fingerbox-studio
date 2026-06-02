@@ -6,7 +6,18 @@ export type JointType = "finger" | "butt";
 
 export type FingerStyle = "box" | "dovetail" | "chamfer";
 
+export type MaterialId =
+  | "plywood"
+  | "mdf"
+  | "acrylic"
+  | "hardboard"
+  | "cardboard";
+
 export interface BoxConfig {
+  /** Sheet material */
+  material: MaterialId;
+  /** Auto-calculate kerf/tolerance from material */
+  autoKerf: boolean;
   /** Measurement reference mode */
   measure: MeasureMode;
   /** Length (X) in mm */
