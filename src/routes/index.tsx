@@ -255,8 +255,12 @@ function App() {
                 <Slider value={cfg.tooth} onChange={(v) => set("tooth", v)} min={4} max={40} step={0.5} />
               </div>
               <div className="space-y-1.5">
-                <FieldLabel value={`${cfg.kerf.toFixed(2)} mm`}>Kerf / tolerance</FieldLabel>
-                <Slider value={cfg.kerf} onChange={(v) => set("kerf", v)} min={0} max={0.5} step={0.01} />
+                <FieldLabel value={`${cfg.kerf.toFixed(2)} mm${cfg.autoKerf ? " · auto" : ""}`}>
+                  Kerf / tolerance
+                </FieldLabel>
+                <div className={cfg.autoKerf ? "pointer-events-none opacity-50" : ""}>
+                  <Slider value={cfg.kerf} onChange={(v) => set("kerf", v)} min={0} max={0.5} step={0.01} />
+                </div>
               </div>
               <Toggle
                 label="Alternate corner teeth"
