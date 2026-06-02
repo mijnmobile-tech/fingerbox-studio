@@ -1,6 +1,8 @@
 import type { BoxConfig } from "./types";
 
 export const defaultConfig: BoxConfig = {
+  material: "plywood",
+  autoKerf: true,
   measure: "interior",
   length: 150,
   height: 50,
