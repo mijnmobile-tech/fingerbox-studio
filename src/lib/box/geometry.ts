@@ -238,10 +238,7 @@ function buildFrontBackOutline(
     const x1 = (i + 1) * fw - k;
     const x2 = i * fw + k;
     if (featureOnIndex(i, false)) {
-      pushPoint(pts, x1, H + t);
-      pushPoint(pts, x1, H);
-      pushPoint(pts, x2, H);
-      pushPoint(pts, x2, H + t);
+      emitTab(pts, x1, H + t, x2, H + t, 0, -t, style);
     }
     pushPoint(pts, i * fw, H + t);
   }
