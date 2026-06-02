@@ -271,6 +271,7 @@ function buildSideOutline(
   kerf: number,
   slotPositions: number[],
   includeTopFingerSlots: boolean,
+  style: FingerStyle = "box",
 ) {
   const { n: nD, fw: fd } = fingerCount(D, tooth);
   const { n: nH, fw: fh } = fingerCount(H, tooth);
