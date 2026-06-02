@@ -474,8 +474,8 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   const backRaw = useFinger
     ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, topFingers, fs)
     : buildRectOutline(OW, OH);
-  pushPanel("front", "Front", frontRaw, [useFinger ? OW : OW, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
-  pushPanel("back", "Back", backRaw, [useFinger ? OW : OW, t, OH], [0, D / 2 + t / 2, OH / 2]);
+  pushPanel("front", "Front", frontRaw, [OW, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
+  pushPanel("back", "Back", backRaw, [OW, t, OH], [0, D / 2 + t / 2, OH / 2]);
 
   const sideRaw = useFinger
     ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, topFingers, fs)
