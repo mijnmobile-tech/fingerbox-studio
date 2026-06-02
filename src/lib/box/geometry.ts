@@ -17,6 +17,50 @@ function featureOnIndex(i: number, flip = false) {
   return flip ? i % 2 === 0 : i % 2 !== 0;
 }
 
+/**
+ * Emit one tooth (tab) along an edge. The tooth baseline runs from
+ * (sx,sy) to (ex,ey); (ox,oy) is the outward protrusion vector (= depth).
+ * The shape of the protruding tip is controlled by `style`:
+ *  - box: square tab (default)
+ *  - chamfer: 45° cut on the two outer corners
+ *  - dovetail: trapezoidal tab, wider at the tip
+ */
+function emitTab(
+  pts: Point[],
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number,
+  ox: number,
+  oy: number,
+  style: FingerStyle = "box",
+) {
+  const len = Math.hypot(ex - sx, ey - sy) || 1;
+  const ux = (ex - sx) / len;
+  const uy = (ey - sy) / len;
+
+  pushPoint(pts, sx, sy);
+
+  if (style === "dovetail") {
+    const d = Math.min(len * 0.18, len / 3);
+    pushPoint(pts, sx + ox - ux * d, sy + oy - uy * d);
+    pushPoint(pts, ex + ox + ux * d, ey + oy + uy * d);
+  } else if (style === "chamfer") {
+    const depth = Math.hypot(ox, oy) || 1;
+    const c = Math.min(len * 0.28, depth * 0.7);
+    const fx = c / depth;
+    pushPoint(pts, sx + ox * (1 - fx), sy + oy * (1 - fx));
+    pushPoint(pts, sx + ox + ux * c, sy + oy + uy * c);
+    pushPoint(pts, ex + ox - ux * c, ey + oy - uy * c);
+    pushPoint(pts, ex + ox * (1 - fx), ey + oy * (1 - fx));
+  } else {
+    pushPoint(pts, sx + ox, sy + oy);
+    pushPoint(pts, ex + ox, ey + oy);
+  }
+
+  pushPoint(pts, ex, ey);
+}
+
 interface EdgeSlot {
   start: number;
   end: number;
