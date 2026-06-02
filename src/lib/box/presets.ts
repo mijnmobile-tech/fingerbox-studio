@@ -17,6 +17,7 @@ export const defaultConfig: BoxConfig = {
   tooth: 9,
   kerf: 0.1,
   alternateCorners: true,
+  topFingers: false,
   lid: false,
 };
 
