@@ -69,6 +69,34 @@ function panelGeometry(panel: Panel, t: number) {
   return geo;
 }
 
+function panelBasis(panel: Panel) {
+  const ti = thicknessAxis(panel.placement.size);
+
+  if (ti === 1) {
+    const reverseX = panel.id === "back";
+    return new THREE.Matrix4().makeBasis(
+      toThree(reverseX ? -1 : 1, 0, 0),
+      toThree(0, 0, -1),
+      toThree(0, reverseX ? -1 : 1, 0),
+    );
+  }
+
+  if (ti === 0) {
+    const reverseX = panel.id === "right";
+    return new THREE.Matrix4().makeBasis(
+      toThree(0, reverseX ? -1 : 1, 0),
+      toThree(0, 0, -1),
+      toThree(reverseX ? 1 : -1, 0, 0),
+    );
+  }
+
+  return new THREE.Matrix4().makeBasis(
+    toThree(1, 0, 0),
+    toThree(0, 1, 0),
+    toThree(0, 0, 1),
+  );
+}
+
 export function Viewer3D({ box, view, exploded = 0 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<{
@@ -239,32 +267,7 @@ export function Viewer3D({ box, view, exploded = 0 }: Props) {
     box.panels.forEach((p, i) => {
       const t = Math.min(...p.placement.size);
       const geo = panelGeometry(p, t);
-
-      // local axes (outline-x, outline-y, thickness) in model space
-      const ti = thicknessAxis(p.placement.size);
-      let uxm: THREE.Vector3, uym: THREE.Vector3, uzm: THREE.Vector3;
-      if (ti === 1) {
-        // thickness along Y (front/back, Y-divider) — plane XZ
-        // outline-y=0 is the box TOP edge, so it must map to higher Z (up):
-        // increasing outline-y goes DOWN in model space.
-        uxm = toThree(1, 0, 0);
-        uym = toThree(0, 0, -1);
-        uzm = toThree(0, 1, 0);
-      } else if (ti === 0) {
-        // thickness along X (left/right, X-divider) — plane YZ
-        // outline-y=0 is the box TOP edge -> map to higher Z (up).
-        uxm = toThree(0, 1, 0);
-        uym = toThree(0, 0, -1);
-        // flip the thickness axis too so the basis stays a proper rotation
-        // (det = +1); otherwise three.js drops the side panel meshes.
-        uzm = toThree(-1, 0, 0);
-      } else {
-        // thickness along Z (plates) — plane XY
-        uxm = toThree(1, 0, 0);
-        uym = toThree(0, 1, 0);
-        uzm = toThree(0, 0, 1);
-      }
-      const basis = new THREE.Matrix4().makeBasis(uxm, uym, uzm);
+      const basis = panelBasis(p);
 
       const mat = p.id.startsWith("div") ? dividerMat : woodMat;
       const mesh = new THREE.Mesh(geo, mat);
