@@ -253,17 +253,17 @@ function App() {
             </Section>
 
             <Section title="Finger Joints">
-              <div className="space-y-1.5">
-                <FieldLabel>Joint type</FieldLabel>
-                <SegmentedControl
-                  options={[
-                    { value: "finger", label: "Finger" },
-                    { value: "butt", label: "Butt" },
-                  ]}
-                  value={cfg.joint}
-                  onChange={(v) => set("joint", v as BoxConfig["joint"])}
-                />
-              </div>
+              <Toggle
+                label="Finger joints"
+                checked={cfg.joint === "finger"}
+                onChange={(on) =>
+                  setCfg((c) => ({
+                    ...c,
+                    joint: on ? "finger" : "butt",
+                    topFingers: on ? c.topFingers : false,
+                  }))
+                }
+              />
               <div className="space-y-1.5">
                 <FieldLabel value={`${cfg.tooth.toFixed(1)} mm`}>Tooth size</FieldLabel>
                 <Slider value={cfg.tooth} onChange={(v) => set("tooth", v)} min={4} max={40} step={0.5} />
@@ -281,13 +281,12 @@ function App() {
                 checked={cfg.alternateCorners}
                 onChange={(v) => set("alternateCorners", v)}
               />
-              {cfg.joint === "finger" && (
-                <Toggle
-                  label="Top edge finger joints"
-                  checked={cfg.topFingers}
-                  onChange={(v) => set("topFingers", v)}
-                />
-              )}
+              <Toggle
+                label="Top edge finger joints"
+                checked={cfg.topFingers}
+                onChange={(v) => set("topFingers", v)}
+                disabled={cfg.joint !== "finger"}
+              />
             </Section>
 
             <Section title="Lid" defaultOpen={false}>
