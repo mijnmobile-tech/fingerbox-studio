@@ -73,20 +73,18 @@ function panelBasis(panel: Panel) {
   const ti = thicknessAxis(panel.placement.size);
 
   if (ti === 1) {
-    const reverseX = panel.id === "back";
     return new THREE.Matrix4().makeBasis(
-      toThree(reverseX ? -1 : 1, 0, 0),
+      toThree(1, 0, 0),
       toThree(0, 0, -1),
-      toThree(0, reverseX ? -1 : 1, 0),
+      toThree(0, 1, 0),
     );
   }
 
   if (ti === 0) {
-    const reverseX = panel.id === "right";
     return new THREE.Matrix4().makeBasis(
-      toThree(0, reverseX ? -1 : 1, 0),
+      toThree(0, 1, 0),
       toThree(0, 0, -1),
-      toThree(reverseX ? 1 : -1, 0, 0),
+      toThree(-1, 0, 0),
     );
   }
 
