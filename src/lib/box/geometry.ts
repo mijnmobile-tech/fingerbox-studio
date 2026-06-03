@@ -449,6 +449,23 @@ function bounds(pts: Point[]) {
   return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
 }
 
+function mirrorPointsX(pts: Point[]) {
+  const b = bounds(pts);
+  const axis = b.minX + b.maxX;
+  return pts.map((p) => ({ x: axis - p.x, y: p.y }));
+}
+
+function mirrorPanelRawX(raw: Point[] | { pts: Point[]; holes: Point[][] }) {
+  if (Array.isArray(raw)) {
+    return mirrorPointsX(raw);
+  }
+
+  return {
+    pts: mirrorPointsX(raw.pts),
+    holes: raw.holes.map(mirrorPointsX),
+  };
+}
+
 
 /** Resolve interior dimensions from the chosen measurement mode. */
 function resolveInterior(cfg: BoxConfig) {
@@ -528,17 +545,16 @@ export function buildBox(cfg: BoxConfig): BuiltBox {
   const frontRaw = useFinger
     ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, topFingers, fs, closeTop)
     : buildRectOutline(OW, OH);
-  const backRaw = useFinger
-    ? buildFrontBackOutline(W, H, t, cfg.tooth, cfg.kerf, divXSlots, topFingers, fs, closeTop)
-    : buildRectOutline(OW, OH);
+  const backRaw = useFinger ? mirrorPanelRawX(frontRaw) : buildRectOutline(OW, OH);
   pushPanel("front", "Front", frontRaw, [OW, t, OH], [0, -(D / 2 + t / 2), OH / 2]);
   pushPanel("back", "Back", backRaw, [OW, t, OH], [0, D / 2 + t / 2, OH / 2]);
 
   const sideRaw = useFinger
     ? buildSideOutline(D, H, t, cfg.tooth, cfg.kerf, divYSlots, topFingers, fs, closeTop)
     : buildRectOutline(D, OH);
+  const rightRaw = useFinger ? mirrorPanelRawX(sideRaw) : buildRectOutline(D, OH);
   pushPanel("left", "Left", sideRaw, [t, useFinger ? OD : D, OH], [-(W / 2 + t / 2), 0, OH / 2]);
-  pushPanel("right", "Right", sideRaw, [t, useFinger ? OD : D, OH], [W / 2 + t / 2, 0, OH / 2]);
+  pushPanel("right", "Right", rightRaw, [t, useFinger ? OD : D, OH], [W / 2 + t / 2, 0, OH / 2]);
 
   if (cfg.lid) {
     pushPanel(
