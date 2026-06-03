@@ -246,7 +246,7 @@ function buildFrontBackOutline(
         pushPoint(pts, W + t, H);
         pushPoint(pts, W + t, H + t);
       } else {
-        emitTab(pts, W, y1, W, y2, t, 0, style, i % 2 === 0);
+        emitTab(pts, W, y1, W, y2, t, 0, style);
       }
     }
     if (!(featureOnIndex(i, true) && i === nH - 1)) {
@@ -274,7 +274,7 @@ function buildFrontBackOutline(
         pushPoint(pts, -t, y2);
         pushPoint(pts, 0, y2);
       } else {
-        emitTab(pts, 0, y1, 0, y2, -t, 0, style, i % 2 === 0);
+        emitTab(pts, 0, y1, 0, y2, -t, 0, style);
       }
     }
     pushPoint(pts, 0, i * fh);
@@ -331,7 +331,7 @@ function buildSideOutline(
     const y1 = i * fh + k;
     const y2 = (i + 1) * fh - k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, D, y1, D, y2, t, 0, style, i % 2 === 0);
+      emitTab(pts, D, y1, D, y2, t, 0, style);
     }
     pushPoint(pts, D, (i + 1) * fh);
   }
@@ -351,7 +351,7 @@ function buildSideOutline(
     const y1 = (i + 1) * fh - k;
     const y2 = i * fh + k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, 0, y1, 0, y2, -t, 0, style, i % 2 === 0);
+      emitTab(pts, 0, y1, 0, y2, -t, 0, style);
     }
     pushPoint(pts, 0, i * fh);
   }
