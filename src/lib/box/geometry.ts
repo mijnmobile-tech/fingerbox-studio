@@ -34,6 +34,7 @@ function emitTab(
   ox: number,
   oy: number,
   style: FingerStyle = "box",
+  invert = false,
 ) {
   const len = Math.hypot(ex - sx, ey - sy) || 1;
   const ux = (ex - sx) / len;
@@ -43,16 +44,34 @@ function emitTab(
 
   if (style === "dovetail") {
     const d = Math.min(len * 0.18, len / 3);
-    pushPoint(pts, sx + ox - ux * d, sy + oy - uy * d);
-    pushPoint(pts, ex + ox + ux * d, ey + oy + uy * d);
+    if (!invert) {
+      // flared wider at the tip (a "tail")
+      pushPoint(pts, sx + ox - ux * d, sy + oy - uy * d);
+      pushPoint(pts, ex + ox + ux * d, ey + oy + uy * d);
+    } else {
+      // mirrored: narrower at the tip (a "pin") so it nests into the
+      // gap left between two tails on the mating panel exactly.
+      pushPoint(pts, sx + ox + ux * d, sy + oy + uy * d);
+      pushPoint(pts, ex + ox - ux * d, ey + oy - uy * d);
+    }
   } else if (style === "chamfer") {
     const depth = Math.hypot(ox, oy) || 1;
     const c = Math.min(len * 0.28, depth * 0.7);
     const fx = c / depth;
-    pushPoint(pts, sx + ox * (1 - fx), sy + oy * (1 - fx));
-    pushPoint(pts, sx + ox + ux * c, sy + oy + uy * c);
-    pushPoint(pts, ex + ox - ux * c, ey + oy - uy * c);
-    pushPoint(pts, ex + ox * (1 - fx), ey + oy * (1 - fx));
+    if (!invert) {
+      // chamfer the two outer (tip) corners
+      pushPoint(pts, sx + ox * (1 - fx), sy + oy * (1 - fx));
+      pushPoint(pts, sx + ox + ux * c, sy + oy + uy * c);
+      pushPoint(pts, ex + ox - ux * c, ey + oy - uy * c);
+      pushPoint(pts, ex + ox * (1 - fx), ey + oy * (1 - fx));
+    } else {
+      // mirrored: chamfer the two inner (base) corners so the tab is the
+      // exact negative of the chamfered gap on the mating panel.
+      pushPoint(pts, sx + ux * c, sy + uy * c);
+      pushPoint(pts, sx + ox, sy + oy);
+      pushPoint(pts, ex + ox, ey + oy);
+      pushPoint(pts, ex - ux * c, ey - uy * c);
+    }
   } else {
     pushPoint(pts, sx + ox, sy + oy);
     pushPoint(pts, ex + ox, ey + oy);
@@ -160,7 +179,7 @@ function buildBottomOutline(
     const x1 = i * fw + k;
     const x2 = (i + 1) * fw - k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, x1, 0, x2, 0, 0, -t, style);
+      emitTab(pts, x1, 0, x2, 0, 0, -t, "box");
     }
     pushPoint(pts, (i + 1) * fw, 0);
   }
@@ -168,7 +187,7 @@ function buildBottomOutline(
     const y1 = i * fd + k;
     const y2 = (i + 1) * fd - k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, W, y1, W, y2, t, 0, style);
+      emitTab(pts, W, y1, W, y2, t, 0, "box");
     }
     pushPoint(pts, W, (i + 1) * fd);
   }
@@ -176,7 +195,7 @@ function buildBottomOutline(
     const x1 = (i + 1) * fw - k;
     const x2 = i * fw + k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, x1, D, x2, D, 0, t, style);
+      emitTab(pts, x1, D, x2, D, 0, t, "box");
     }
     pushPoint(pts, i * fw, D);
   }
@@ -184,7 +203,7 @@ function buildBottomOutline(
     const y1 = (i + 1) * fd - k;
     const y2 = i * fd + k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, 0, y1, 0, y2, -t, 0, style);
+      emitTab(pts, 0, y1, 0, y2, -t, 0, "box");
     }
     pushPoint(pts, 0, i * fd);
   }
@@ -227,7 +246,7 @@ function buildFrontBackOutline(
         pushPoint(pts, W + t, H);
         pushPoint(pts, W + t, H + t);
       } else {
-        emitTab(pts, W, y1, W, y2, t, 0, style);
+        emitTab(pts, W, y1, W, y2, t, 0, style, i % 2 === 0);
       }
     }
     if (!(featureOnIndex(i, true) && i === nH - 1)) {
@@ -239,7 +258,7 @@ function buildFrontBackOutline(
     const x1 = (i + 1) * fw - k;
     const x2 = i * fw + k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, x1, H + t, x2, H + t, 0, -t, style);
+      emitTab(pts, x1, H + t, x2, H + t, 0, -t, "box");
     }
     pushPoint(pts, i * fw, H + t);
   }
@@ -255,7 +274,7 @@ function buildFrontBackOutline(
         pushPoint(pts, -t, y2);
         pushPoint(pts, 0, y2);
       } else {
-        emitTab(pts, 0, y1, 0, y2, -t, 0, style);
+        emitTab(pts, 0, y1, 0, y2, -t, 0, style, i % 2 === 0);
       }
     }
     pushPoint(pts, 0, i * fh);
@@ -312,7 +331,7 @@ function buildSideOutline(
     const y1 = i * fh + k;
     const y2 = (i + 1) * fh - k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, D, y1, D, y2, t, 0, style);
+      emitTab(pts, D, y1, D, y2, t, 0, style, i % 2 === 0);
     }
     pushPoint(pts, D, (i + 1) * fh);
   }
@@ -322,7 +341,7 @@ function buildSideOutline(
     const x1 = (i + 1) * fd - k;
     const x2 = i * fd + k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, x1, H + t, x2, H + t, 0, -t, style);
+      emitTab(pts, x1, H + t, x2, H + t, 0, -t, "box");
     }
     pushPoint(pts, i * fd, H + t);
   }
@@ -332,7 +351,7 @@ function buildSideOutline(
     const y1 = (i + 1) * fh - k;
     const y2 = i * fh + k;
     if (featureOnIndex(i, false)) {
-      emitTab(pts, 0, y1, 0, y2, -t, 0, style);
+      emitTab(pts, 0, y1, 0, y2, -t, 0, style, i % 2 === 0);
     }
     pushPoint(pts, 0, i * fh);
   }
