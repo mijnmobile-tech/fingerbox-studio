@@ -36,11 +36,8 @@ function emitTab(
   style: FingerStyle = "box",
   invert = false,
 ) {
-  const len = Math.hypot(ex - sx, ey - sy) || 1;
-  const ux = (ex - sx) / len;
-  const uy = (ey - sy) / len;
-
   pushPoint(pts, sx, sy);
+
 
   pushPoint(pts, sx + ox, sy + oy);
   pushPoint(pts, ex + ox, ey + oy);
