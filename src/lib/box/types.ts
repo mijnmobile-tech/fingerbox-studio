@@ -4,7 +4,7 @@ export type MeasureMode = "interior" | "exterior" | "cell";
 
 export type JointType = "finger" | "butt";
 
-export type FingerStyle = "box" | "dovetail" | "chamfer";
+export type FingerStyle = "box";
 
 export type MaterialId =
   | "plywood"
