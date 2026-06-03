@@ -2,8 +2,6 @@
 @source "../src";
 @import "tw-animate-css";
 
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap");
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
