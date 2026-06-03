@@ -264,21 +264,7 @@ function App() {
                   onChange={(v) => set("joint", v as BoxConfig["joint"])}
                 />
               </div>
-              {cfg.joint === "finger" && (
-                <div className="space-y-1.5">
-                  <FieldLabel>Finger joint type</FieldLabel>
-                  <SegmentedControl
-                    options={[
-                      { value: "box", label: "Box" },
-                      { value: "dovetail", label: "Dovetail" },
-                      { value: "chamfer", label: "Chamfer" },
-                    ]}
-                    value={cfg.fingerStyle}
-                    onChange={(v) => set("fingerStyle", v as BoxConfig["fingerStyle"])}
-                  />
-                </div>
-              )}
-              <div className="space-y-1.5">
+
                 <FieldLabel value={`${cfg.tooth.toFixed(1)} mm`}>Tooth size</FieldLabel>
                 <Slider value={cfg.tooth} onChange={(v) => set("tooth", v)} min={4} max={40} step={0.5} />
               </div>
